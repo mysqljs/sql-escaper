@@ -1,0 +1,6 @@
+{
+  "type": "module",
+  "devDependencies": {
+    "sqlstring": "^2.3.3"
+  }
+}
