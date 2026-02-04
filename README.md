@@ -314,21 +314,21 @@ import type { Raw, SqlValue, Timezone } from 'sql-escaper';
 
 Each benchmark formats `10,000` queries using `format` with `100` mixed values (numbers, strings, `null`, and dates), comparing **SQL Escaper** against the original [**sqlstring**](https://github.com/mysqljs/sqlstring) through [**hyperfine**](https://github.com/sharkdp/hyperfine):
 
-| Benchmark                                | sqlstring | SQL Escaper |       Difference |
-| ---------------------------------------- | --------: | ----------: | ---------------: |
-| Select 100 values                        |  313.0 ms |    193.7 ms | **1.62x faster** |
-| Insert 100 values                        |  311.9 ms |    194.1 ms | **1.61x faster** |
-| SET with 100 values                      |  317.6 ms |    191.0 ms | **1.66x faster** |
-| SET with 100 objects                     |  448.9 ms |    224.2 ms | **2.00x faster** |
-| ON DUPLICATE KEY UPDATE with 100 values  |  568.8 ms |    330.3 ms | **1.72x faster** |
-| ON DUPLICATE KEY UPDATE with 100 objects |  690.3 ms |    361.1 ms | **1.91x faster** |
+| Benchmark                                |  sqlstring | SQL Escaper |       Difference |
+| ---------------------------------------- | ---------: | ----------: | ---------------: |
+| Select 100 values                        |   460.9 ms |    242.2 ms | **1.90x faster** |
+| Insert 100 values                        |   468.6 ms |    242.5 ms | **1.93x faster** |
+| SET with 100 values                      |   484.2 ms |    257.0 ms | **1.88x faster** |
+| SET with 100 objects                     |   671.6 ms |    283.2 ms | **2.37x faster** |
+| ON DUPLICATE KEY UPDATE with 100 values  |   894.0 ms |    459.8 ms | **1.94x faster** |
+| ON DUPLICATE KEY UPDATE with 100 objects | 1,092.0 ms |    485.7 ms | **2.25x faster** |
 
 - See detailed results and how the benchmarks are run in the [**benchmark**](https://github.com/wellwelwel/sql-escaper/tree/main/benchmark) directory.
 
 > [!NOTE]
 >
-> Benchmarks ran on an **Apple M2 Ultra** with **64 GB RAM** using **Node.js v25.5.0**.
-> Results may vary depending on hardware and runtime version.
+> Benchmarks ran on [**GitHub Actions**](https://github.com/wellwelwel/sql-escaper/blob/main/.github/workflows/ci_benchmark.yml) (`ubuntu-latest`) using **Node.js LTS**.
+> Results may vary depending on runner hardware and runtime version.
 
 ---
 
