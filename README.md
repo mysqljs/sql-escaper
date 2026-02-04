@@ -13,8 +13,6 @@
 
 ## Install
 
-> 🚧 **WIP**
-
 ```bash
 # Node.js
 npm i sql-escaper
