@@ -4,6 +4,7 @@
  */
 
 import type { Raw, SqlValue, Timezone } from './types.js';
+import { Buffer } from 'node:buffer';
 
 export type { Raw, SqlValue, Timezone } from './types.js';
 
