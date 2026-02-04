@@ -378,11 +378,11 @@ See the [**Contributing Guide**](https://github.com/wellwelwel/sql-escaper/blob/
 
 - [![Contributors](https://img.shields.io/github/contributors/wellwelwel/sql-escaper?label=Contributors)](https://github.com/wellwelwel/sql-escaper/graphs/contributors)
 - **SQL Escaper** is adapted from [**sqlstring**](https://github.com/mysqljs/sqlstring) ([**MIT**](https://github.com/mysqljs/sqlstring/blob/master/LICENSE)), modernizing it with high performance, TypeScript support and multi-runtime compatibility.
-- Special thanks to [**Douglas Wilson**](https://github.com/dougwilson) for the original **sqlstring** project.
+- Special thanks to [**Douglas Wilson**](https://github.com/dougwilson) for the original **sqlstring** project and its [**contributors**](https://github.com/mysqljs/sqlstring/graphs/contributors).
 
 ---
 
 ## License
 
 **SQL Escaper** is under the [**MIT License**](https://github.com/wellwelwel/sql-escaper/blob/main/LICENSE).<br />
-Copyright © 2024-present [Weslley Araújo](https://github.com/wellwelwel) and **SQL Escaper** [contributors](https://github.com/wellwelwel/sql-escaper/graphs/contributors).
+Copyright © 2026-present [**Weslley Araújo**](https://github.com/wellwelwel) and **SQL Escaper** [**contributors**](https://github.com/wellwelwel/sql-escaper/graphs/contributors).
