@@ -193,18 +193,17 @@ const escapeString = (value: string): string => {
 
 const pad2 = (value: number): string => (value < 10 ? '0' + value : '' + value);
 
-const pad3 = (value: number): string => {
-  if (value < 10) return '00' + value;
-  if (value < 100) return '0' + value;
-  return '' + value;
-};
+const pad3 = (value: number): string =>
+  value < 10 ? '00' + value : value < 100 ? '0' + value : '' + value;
 
-const pad4 = (value: number): string => {
-  if (value < 10) return '000' + value;
-  if (value < 100) return '00' + value;
-  if (value < 1000) return '0' + value;
-  return '' + value;
-};
+const pad4 = (value: number): string =>
+  value < 10
+    ? '000' + value
+    : value < 100
+      ? '00' + value
+      : value < 1000
+        ? '0' + value
+        : '' + value;
 
 const convertTimezone = (tz: Timezone): number | false => {
   if (tz === 'Z') return 0;

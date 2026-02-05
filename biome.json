@@ -34,7 +34,8 @@
         "noSecrets": "off",
         "useExplicitType": "off",
         "noOctalEscape": "off",
-        "useGuardForIn": "off"
+        "useGuardForIn": "off",
+        "noNestedTernary": "off"
       },
       "performance": {
         "all": true,
