@@ -9,7 +9,6 @@ import { Buffer } from 'node:buffer';
 export type { Raw, SqlValue, Timezone } from './types.js';
 
 const regex = {
-  set: /\bSET\b|\bKEY\s+UPDATE\b/i,
   backtick: /`/g,
   dot: /\./g,
   timezone: /([+\-\s])(\d\d):?(\d\d)?/,
@@ -28,17 +27,128 @@ const CHARS_ESCAPE_MAP: Record<string, string> = {
   '\\': '\\\\',
 } as const;
 
+const charCode = {
+  singleQuote: 39,
+  backslash: 92,
+  dash: 45,
+  slash: 47,
+  asterisk: 42,
+  questionMark: 63,
+  newline: 10,
+  space: 32,
+  tab: 9,
+  carriageReturn: 13,
+} as const;
+
 const isRecord = (val: unknown): val is Record<string, SqlValue> =>
   typeof val === 'object' && val !== null && !Array.isArray(val);
 
-const isDate = (val: unknown): val is Date =>
-  Object.prototype.toString.call(val) === '[object Date]';
+const isWordChar = (code: number): boolean =>
+  (code >= 65 && code <= 90) ||
+  (code >= 97 && code <= 122) ||
+  (code >= 48 && code <= 57) ||
+  code === 95;
 
-const hasSqlString = (val: unknown): val is Raw =>
-  typeof val === 'object' &&
-  val !== null &&
-  'toSqlString' in val &&
-  typeof val.toSqlString === 'function';
+const isWhitespace = (code: number): boolean =>
+  code === charCode.space ||
+  code === charCode.tab ||
+  code === charCode.newline ||
+  code === charCode.carriageReturn;
+
+const toLower = (code: number): number => code | 32;
+
+const matchesWord = (
+  sql: string,
+  position: number,
+  word: string,
+  length: number
+): boolean => {
+  for (let offset = 0; offset < word.length; offset++)
+    if (toLower(sql.charCodeAt(position + offset)) !== word.charCodeAt(offset))
+      return false;
+
+  return (
+    (position === 0 || !isWordChar(sql.charCodeAt(position - 1))) &&
+    (position + word.length >= length ||
+      !isWordChar(sql.charCodeAt(position + word.length)))
+  );
+};
+
+const skipSqlContext = (sql: string, position: number): number => {
+  const currentChar = sql.charCodeAt(position);
+  const nextChar = sql.charCodeAt(position + 1);
+
+  if (currentChar === charCode.singleQuote) {
+    for (let cursor = position + 1; cursor < sql.length; cursor++) {
+      if (sql.charCodeAt(cursor) === charCode.backslash) cursor++;
+      else if (sql.charCodeAt(cursor) === charCode.singleQuote)
+        return cursor + 1;
+    }
+
+    return sql.length;
+  }
+
+  if (currentChar === charCode.dash && nextChar === charCode.dash) {
+    const lineBreak = sql.indexOf('\n', position + 2);
+    return lineBreak === -1 ? sql.length : lineBreak + 1;
+  }
+
+  if (currentChar === charCode.slash && nextChar === charCode.asterisk) {
+    const commentEnd = sql.indexOf('*/', position + 2);
+    return commentEnd === -1 ? sql.length : commentEnd + 2;
+  }
+
+  return -1;
+};
+
+const findNextPlaceholder = (sql: string, start: number): number => {
+  for (let position = start; position < sql.length; position++) {
+    const contextEnd = skipSqlContext(sql, position);
+
+    if (contextEnd !== -1) {
+      position = contextEnd - 1;
+      continue;
+    }
+
+    if (sql.charCodeAt(position) === charCode.questionMark) return position;
+  }
+
+  return -1;
+};
+
+const findSetKeyword = (sql: string): number => {
+  const length = sql.length;
+
+  for (let position = 0; position < length; position++) {
+    const contextEnd = skipSqlContext(sql, position);
+
+    if (contextEnd !== -1) {
+      position = contextEnd - 1;
+      continue;
+    }
+
+    if (matchesWord(sql, position, 'set', length)) return position;
+
+    if (matchesWord(sql, position, 'key', length)) {
+      let cursor = position + 3;
+
+      while (cursor < length && isWhitespace(sql.charCodeAt(cursor))) cursor++;
+
+      if (matchesWord(sql, cursor, 'update', length)) return position;
+    }
+  }
+
+  return -1;
+};
+
+const isDate = (value: unknown): value is Date =>
+  Object.prototype.toString.call(value) === '[object Date]';
+
+const hasSqlString = (value: unknown): value is Raw =>
+  typeof value === 'object' &&
+  value !== null &&
+  'toSqlString' in value &&
+  typeof value.toSqlString === 'function';
 
 const escapeString = (value: string): string => {
   regex.escapeChars.lastIndex = 0;
@@ -65,7 +175,7 @@ const escapeString = (value: string): string => {
   return `'${escapedValue}'`;
 };
 
-const zeroPad = (number: number, length: number): string =>
+const pad = (number: number, length: number): string =>
   String(number).padStart(length, '0');
 
 const convertTimezone = (tz: Timezone): number | false => {
@@ -123,10 +233,10 @@ export const dateToString = (date: Date, timezone: Timezone): string => {
   }
 
   // YYYY-MM-DD HH:mm:ss.mmm
-  const formattedDateTime = `${zeroPad(year, 4)}-${zeroPad(month, 2)}-${zeroPad(
+  const formattedDateTime = `${pad(year, 4)}-${pad(month, 2)}-${pad(
     day,
     2
-  )} ${zeroPad(hour, 2)}:${zeroPad(minute, 2)}:${zeroPad(second, 2)}.${zeroPad(
+  )} ${pad(hour, 2)}:${pad(minute, 2)}:${pad(second, 2)}.${pad(
     millisecond,
     3
   )}`;
@@ -218,16 +328,11 @@ export const escape = (
 
     case 'object': {
       if (isDate(value)) return dateToString(value, timezone || 'local');
-
       if (Array.isArray(value)) return arrayToList(value, timezone);
-
       if (Buffer.isBuffer(value)) return bufferToString(value);
-
       if (hasSqlString(value)) return String(value.toSqlString());
-
       if (!(stringifyObjects === undefined || stringifyObjects === null))
         return escapeString(String(value));
-
       if (isRecord(value)) return objectToValues(value, timezone);
 
       return escapeString(String(value));
@@ -256,7 +361,7 @@ export const format = (
   let result = '';
   let chunkIndex = 0;
   let valuesIndex = 0;
-  let placeholderPosition = sql.indexOf('?');
+  let placeholderPosition = findNextPlaceholder(sql, 0);
 
   while (valuesIndex < length && placeholderPosition !== -1) {
     // Count consecutive question marks to detect ? vs ?? vs ???+
@@ -269,7 +374,7 @@ export const format = (
     const currentValue = valuesArray[valuesIndex];
 
     if (placeholderLength > 2) {
-      placeholderPosition = sql.indexOf('?', placeholderEnd);
+      placeholderPosition = findNextPlaceholder(sql, placeholderEnd);
       continue;
     }
 
@@ -281,7 +386,7 @@ export const format = (
       !stringifyObjects
     ) {
       // Lazy: compute SET position only when we first encounter an object
-      if (setIndex === -2) setIndex = sql.search(regex.set);
+      if (setIndex === -2) setIndex = findSetKeyword(sql);
 
       if (
         setIndex !== -1 &&
@@ -299,7 +404,7 @@ export const format = (
     result += sql.slice(chunkIndex, placeholderPosition) + escapedValue;
     chunkIndex = placeholderEnd;
     valuesIndex++;
-    placeholderPosition = sql.indexOf('?', placeholderEnd);
+    placeholderPosition = findNextPlaceholder(sql, placeholderEnd);
   }
 
   if (chunkIndex === 0) return sql;
