@@ -25,7 +25,8 @@
       },
       "correctness": {
         "all": true,
-        "useImportExtensions": "error"
+        "useImportExtensions": "error",
+        "noNodejsModules": "off"
       },
       "nursery": {
         "all": true,
@@ -33,7 +34,8 @@
         "noSecrets": "off",
         "useExplicitType": "off",
         "noOctalEscape": "off",
-        "useGuardForIn": "off"
+        "useGuardForIn": "off",
+        "noNestedTernary": "off"
       },
       "performance": {
         "all": true,

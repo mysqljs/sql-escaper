@@ -6,7 +6,7 @@
 import { Buffer } from 'node:buffer';
 import vm from 'node:vm';
 import { assert, test } from 'poku';
-import { escape, escapeId, format, raw } from '../src/index.ts';
+import { escape, escapeId, format, objectToValues, raw } from '../src/index.ts';
 
 test('value is quoted', () => {
   assert.equal(escapeId('id'), '`id`');
@@ -418,4 +418,13 @@ test('toSqlString returns sql as-is', () => {
     raw("NOW() AS 'current_time'").toSqlString(),
     "NOW() AS 'current_time'"
   );
+});
+
+test('empty objects return empty string for objectToValues', () => {
+  assert.equal(objectToValues({}), '');
+});
+
+test('placeholders work with arithmetic operators', () => {
+  const sql = format('SELECT ? - ? + ? / ?', [10, 3, 20, 4]);
+  assert.equal(sql, 'SELECT 10 - 3 + 20 / 4');
 });
