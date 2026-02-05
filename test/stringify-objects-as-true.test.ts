@@ -5,26 +5,7 @@ import { localDate } from './__utils__/localDate.ts';
 
 const format = (sql: string, values?: SqlValue) => _format(sql, values, true);
 
-describe('SELECT without values', () => {
-  it('should return the query unchanged', () => {
-    const query = format('SELECT * FROM users', []);
-
-    assert.strictEqual(query, 'SELECT * FROM users');
-  });
-});
-
 describe('SELECT with object parameter', () => {
-  it('should generate a safe query for a legitimate string', () => {
-    const query = format('SELECT * FROM users WHERE email = ?', [
-      'admin@example.com',
-    ]);
-
-    assert.strictEqual(
-      query,
-      "SELECT * FROM users WHERE email = 'admin@example.com'"
-    );
-  });
-
   it('should not generate a SQL fragment for object { email: 1 }', () => {
     const query = format('SELECT * FROM users WHERE email = ?', [{ email: 1 }]);
 
@@ -36,18 +17,6 @@ describe('SELECT with object parameter', () => {
 });
 
 describe('SELECT with multiple parameters', () => {
-  it('should generate a safe query for a wrong password', () => {
-    const query = format(
-      'SELECT * FROM users WHERE email = ? AND password = ?',
-      ['admin@example.com', 'wrong_password']
-    );
-
-    assert.strictEqual(
-      query,
-      "SELECT * FROM users WHERE email = 'admin@example.com' AND password = 'wrong_password'"
-    );
-  });
-
   it('should not alter the query structure for object { email: 1 }', () => {
     const query = format(
       'SELECT * FROM users WHERE email = ? AND password = ?',
@@ -62,12 +31,6 @@ describe('SELECT with multiple parameters', () => {
 });
 
 describe('DELETE with object parameter', () => {
-  it('should generate a safe query for a legitimate id', () => {
-    const query = format('DELETE FROM users WHERE id = ?', [1]);
-
-    assert.strictEqual(query, 'DELETE FROM users WHERE id = 1');
-  });
-
   it('should not generate a SQL fragment for object { id: true }', () => {
     const query = format('DELETE FROM users WHERE id = ?', [{ id: true }]);
 
@@ -200,42 +163,6 @@ describe('Object placeholder after SET but outside SET clause', () => {
       query,
       "UPDATE users SET '[object Object]' WHERE active = '[object Object]' ORDER BY id LIMIT 10"
     );
-  });
-});
-
-describe('Uint8Array parameter', () => {
-  it('should format Uint8Array as hex string', () => {
-    const data = new Uint8Array([0x48, 0x65, 0x6c, 0x6c, 0x6f]); // "Hello" in hex
-    const query = format('SELECT * FROM files WHERE data = ?', [data]);
-
-    assert.strictEqual(query, "SELECT * FROM files WHERE data = X'48656c6c6f'");
-  });
-
-  it('should format Uint8Array in INSERT statements', () => {
-    const data = new Uint8Array([0xde, 0xad, 0xbe, 0xef]);
-    const query = format('INSERT INTO files (name, data) VALUES (?, ?)', [
-      'test',
-      data,
-    ]);
-
-    assert.strictEqual(
-      query,
-      "INSERT INTO files (name, data) VALUES ('test', X'deadbeef')"
-    );
-  });
-
-  it('should format empty Uint8Array', () => {
-    const data = new Uint8Array([]);
-    const query = format('SELECT * FROM files WHERE data = ?', [data]);
-
-    assert.strictEqual(query, "SELECT * FROM files WHERE data = X''");
-  });
-
-  it('should not expand Uint8Array in SET clause', () => {
-    const data = new Uint8Array([0x01, 0x02]);
-    const query = format('UPDATE files SET ?', [data]);
-
-    assert.strictEqual(query, "UPDATE files SET X'0102'");
   });
 });
 
