@@ -10,7 +10,7 @@ echo "$LABELS" | while IFS=: read -r i label; do
   echo "[$((i + 1))/$TOTAL] $label"
   echo ""
 
-  hyperfine --warmup 3 -N \
+  hyperfine --warmup 5 -N \
     --command-name sqlstring "env CASE=$i node $DIR/sqlstring.js" \
     --command-name sql-escaper "env CASE=$i node $DIR/sql-escaper.js"
 done
