@@ -135,3 +135,70 @@ describe('SELECT and INSERT with Date parameter', () => {
     );
   });
 });
+
+describe('Object placeholder after SET but outside SET clause', () => {
+  it('should not expand object in WHERE clause after UPDATE SET', () => {
+    const query = format('UPDATE users SET ? WHERE id = ?', [
+      { name: 'foo' },
+      { id: 1 },
+    ]);
+
+    assert.strictEqual(
+      query,
+      "UPDATE users SET `name` = 'foo' WHERE id = '[object Object]'"
+    );
+  });
+
+  it('should not expand object in WHERE with multiple conditions after SET', () => {
+    const query = format('UPDATE users SET ? WHERE id = ? AND role = ?', [
+      { name: 'bar' },
+      { id: 1 },
+      'admin',
+    ]);
+
+    assert.strictEqual(
+      query,
+      "UPDATE users SET `name` = 'bar' WHERE id = '[object Object]' AND role = 'admin'"
+    );
+  });
+
+  it('should not expand object in WHERE after multiline UPDATE SET', () => {
+    const query = format(
+      `UPDATE users
+       SET ?
+       WHERE status = ?`,
+      [{ name: 'foo', email: 'bar@test.com' }, { status: 'active' }]
+    );
+
+    assert.strictEqual(
+      query,
+      `UPDATE users
+       SET \`name\` = 'foo', \`email\` = 'bar@test.com'
+       WHERE status = '[object Object]'`
+    );
+  });
+
+  it('should not expand object in subquery after SET', () => {
+    const query = format(
+      'UPDATE users SET ? WHERE id IN (SELECT user_id FROM roles WHERE role = ?)',
+      [{ active: true }, { role: 'admin' }]
+    );
+
+    assert.strictEqual(
+      query,
+      "UPDATE users SET `active` = true WHERE id IN (SELECT user_id FROM roles WHERE role = '[object Object]')"
+    );
+  });
+
+  it('should not expand object in ORDER BY/LIMIT after SET', () => {
+    const query = format(
+      'UPDATE users SET ? WHERE active = ? ORDER BY id LIMIT ?',
+      [{ name: 'test' }, { active: true }, 10]
+    );
+
+    assert.strictEqual(
+      query,
+      "UPDATE users SET `name` = 'test' WHERE active = '[object Object]' ORDER BY id LIMIT 10"
+    );
+  });
+});
