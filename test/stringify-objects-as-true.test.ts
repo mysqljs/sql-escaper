@@ -196,3 +196,29 @@ describe('Object placeholder after SET but outside SET clause', () => {
     );
   });
 });
+
+describe('SET as a column name', () => {
+  it('should stringify object when SET is a column name in WHERE', () => {
+    const query = format('SELECT * FROM t WHERE SET = ? AND id = ?', [
+      'x',
+      { id: 1 },
+    ]);
+
+    assert.strictEqual(
+      query,
+      "SELECT * FROM t WHERE SET = 'x' AND id = '[object Object]'"
+    );
+  });
+
+  it('should stringify objects when SET is a column name with multiple objects', () => {
+    const query = format('SELECT * FROM t WHERE SET = ? AND data = ?', [
+      { set: 'val' },
+      { data: 'test' },
+    ]);
+
+    assert.strictEqual(
+      query,
+      "SELECT * FROM t WHERE SET = '[object Object]' AND data = '[object Object]'"
+    );
+  });
+});

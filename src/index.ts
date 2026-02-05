@@ -55,6 +55,28 @@ const isWhitespace = (code: number): boolean =>
   code === charCode.newline ||
   code === charCode.carriageReturn;
 
+const hasOnlyWhitespaceBetween = (
+  sql: string,
+  start: number,
+  end: number
+): boolean => {
+  if (start >= end) return true;
+
+  for (let i = start; i < end; i++) {
+    const code = sql.charCodeAt(i);
+
+    if (
+      code !== charCode.space &&
+      code !== charCode.tab &&
+      code !== charCode.newline &&
+      code !== charCode.carriageReturn
+    )
+      return false;
+  }
+
+  return true;
+};
+
 const toLower = (code: number): number => code | 32;
 
 const matchesWord = (
@@ -143,14 +165,14 @@ const findSetKeyword = (sql: string): number => {
     }
 
     if (lower === 115 && matchesWord(sql, position, 'set', length))
-      return position;
+      return position + 3;
 
     if (lower === 107 && matchesWord(sql, position, 'key', length)) {
       let cursor = position + 3;
 
       while (cursor < length && isWhitespace(sql.charCodeAt(cursor))) cursor++;
 
-      if (matchesWord(sql, cursor, 'update', length)) return position;
+      if (matchesWord(sql, cursor, 'update', length)) return cursor + 6;
     }
   }
 
@@ -426,7 +448,8 @@ export const format = (
 
       if (
         setIndex !== -1 &&
-        setIndex < placeholderPosition &&
+        setIndex <= placeholderPosition &&
+        hasOnlyWhitespaceBetween(sql, setIndex, placeholderPosition) &&
         !hasSqlString(currentValue) &&
         !Array.isArray(currentValue) &&
         !Buffer.isBuffer(currentValue) &&

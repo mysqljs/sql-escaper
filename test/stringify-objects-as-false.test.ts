@@ -87,6 +87,12 @@ describe('SET with object parameter', () => {
     );
   });
 
+  it('should convert object to key-value pairs when SET is immediately followed by placeholder', () => {
+    const query = format('UPDATE users SET?', [{ name: 'foo' }]);
+
+    assert.strictEqual(query, "UPDATE users SET`name` = 'foo'");
+  });
+
   it('should convert object to key-value pairs for INSERT SET clause', () => {
     const query = format('INSERT INTO users SET ?', [
       { name: 'foo', email: 'bar@test.com' },
@@ -199,6 +205,32 @@ describe('Object placeholder after SET but outside SET clause', () => {
     assert.strictEqual(
       query,
       "UPDATE users SET `name` = 'test' WHERE active = '[object Object]' ORDER BY id LIMIT 10"
+    );
+  });
+});
+
+describe('SET as a column name', () => {
+  it('should not expand object when SET is a column name in WHERE', () => {
+    const query = format('SELECT * FROM t WHERE SET = ? AND id = ?', [
+      'x',
+      { id: 1 },
+    ]);
+
+    assert.strictEqual(
+      query,
+      "SELECT * FROM t WHERE SET = 'x' AND id = '[object Object]'"
+    );
+  });
+
+  it('should not expand object when SET is a column name with multiple objects', () => {
+    const query = format('SELECT * FROM t WHERE SET = ? AND data = ?', [
+      { set: 'val' },
+      { data: 'test' },
+    ]);
+
+    assert.strictEqual(
+      query,
+      "SELECT * FROM t WHERE SET = '[object Object]' AND data = '[object Object]'"
     );
   });
 });
