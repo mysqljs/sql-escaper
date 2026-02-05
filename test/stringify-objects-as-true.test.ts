@@ -129,3 +129,70 @@ describe('SELECT and INSERT with Date parameter', () => {
     );
   });
 });
+
+describe('Object placeholder after SET but outside SET clause', () => {
+  it('should stringify objects in both SET and WHERE clauses', () => {
+    const query = format('UPDATE users SET ? WHERE id = ?', [
+      { name: 'foo' },
+      { id: 1 },
+    ]);
+
+    assert.strictEqual(
+      query,
+      "UPDATE users SET '[object Object]' WHERE id = '[object Object]'"
+    );
+  });
+
+  it('should stringify objects in WHERE with multiple conditions after SET', () => {
+    const query = format('UPDATE users SET ? WHERE id = ? AND role = ?', [
+      { name: 'bar' },
+      { id: 1 },
+      'admin',
+    ]);
+
+    assert.strictEqual(
+      query,
+      "UPDATE users SET '[object Object]' WHERE id = '[object Object]' AND role = 'admin'"
+    );
+  });
+
+  it('should stringify objects in WHERE after multiline UPDATE SET', () => {
+    const query = format(
+      `UPDATE users
+       SET ?
+       WHERE status = ?`,
+      [{ name: 'foo', email: 'bar@test.com' }, { status: 'active' }]
+    );
+
+    assert.strictEqual(
+      query,
+      `UPDATE users
+       SET '[object Object]'
+       WHERE status = '[object Object]'`
+    );
+  });
+
+  it('should stringify object in subquery after SET', () => {
+    const query = format(
+      'UPDATE users SET ? WHERE id IN (SELECT user_id FROM roles WHERE role = ?)',
+      [{ active: true }, { role: 'admin' }]
+    );
+
+    assert.strictEqual(
+      query,
+      "UPDATE users SET '[object Object]' WHERE id IN (SELECT user_id FROM roles WHERE role = '[object Object]')"
+    );
+  });
+
+  it('should stringify object in WHERE with ORDER BY/LIMIT after SET', () => {
+    const query = format(
+      'UPDATE users SET ? WHERE active = ? ORDER BY id LIMIT ?',
+      [{ name: 'test' }, { active: true }, 10]
+    );
+
+    assert.strictEqual(
+      query,
+      "UPDATE users SET '[object Object]' WHERE active = '[object Object]' ORDER BY id LIMIT 10"
+    );
+  });
+});

@@ -432,9 +432,10 @@ export const format = (
         !Buffer.isBuffer(currentValue) &&
         !isDate(currentValue) &&
         isRecord(currentValue)
-      )
+      ) {
         escapedValue = objectToValues(currentValue, timezone);
-      else escapedValue = escape(currentValue, stringifyObjects, timezone);
+        setIndex = -1;
+      } else escapedValue = escape(currentValue, stringifyObjects, timezone);
     } else escapedValue = escape(currentValue, stringifyObjects, timezone);
 
     result += sql.slice(chunkIndex, placeholderPosition);

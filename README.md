@@ -30,7 +30,7 @@ deno add npm:sql-escaper
 
 > [!NOTE]
 >
-> 🔐 **SQL Escaper** fixes a [**SQL Injection vulnerability**](https://flattsecurity.medium.com/finding-an-unseen-sql-injection-by-bypassing-escape-functions-in-mysqljs-mysql-90b27f6542b4) discovered in 2022 in the original [**sqlstring**](https://github.com/mysqljs/sqlstring), where objects passed as values could be expanded into SQL fragments, potentially allowing attackers to manipulate query structure. See [sidorares/node-mysql2#4051](https://github.com/sidorares/node-mysql2/issues/4051) for details.
+> 🔐 **SQL Escaper** fixes a potential [**SQL Injection vulnerability**](https://flattsecurity.medium.com/finding-an-unseen-sql-injection-by-bypassing-escape-functions-in-mysqljs-mysql-90b27f6542b4) discovered in 2022 in the original [**sqlstring**](https://github.com/mysqljs/sqlstring), where objects passed as values could be expanded into SQL fragments, potentially allowing attackers to manipulate query structure. See [sidorares/node-mysql2#4051](https://github.com/sidorares/node-mysql2/issues/4051) for details.
 
 ---
 
