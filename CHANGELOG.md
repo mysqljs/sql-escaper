@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.2](https://github.com/wellwelwel/sql-escaper/compare/v1.1.1...v1.1.2) (2026-02-05)
+
+
+### Bug Fixes
+
+* limit object expansion to immediate placeholder ([#7](https://github.com/wellwelwel/sql-escaper/issues/7)) ([7ac70f3](https://github.com/wellwelwel/sql-escaper/commit/7ac70f3c33da09680c37d6fc0445a6368c012bb6))
+
 ## [1.1.1](https://github.com/wellwelwel/sql-escaper/compare/v1.1.0...v1.1.1) (2026-02-05)
 
 
