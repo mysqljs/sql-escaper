@@ -84,6 +84,12 @@ describe('SET with object parameter', () => {
     assert.strictEqual(query, "UPDATE users SET '[object Object]'");
   });
 
+  it('should stringify object when SET is immediately followed by placeholder', () => {
+    const query = format('UPDATE users SET?', [{ name: 'foo' }]);
+
+    assert.strictEqual(query, "UPDATE users SET'[object Object]'");
+  });
+
   it('should stringify object instead of expanding for INSERT SET clause', () => {
     const query = format('INSERT INTO users SET ?', [
       { name: 'foo', email: 'bar@test.com' },
