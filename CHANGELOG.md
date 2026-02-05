@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.2.0](https://github.com/wellwelwel/sql-escaper/compare/v1.1.2...v1.2.0) (2026-02-05)
+
+
+### Features
+
+* add support for `BigInt` ([#11](https://github.com/wellwelwel/sql-escaper/issues/11)) ([b07edbe](https://github.com/wellwelwel/sql-escaper/commit/b07edbe36cc0cf8ef08ff1f1547126470fd4dd17))
+* add support for `Uint8Array` ([#9](https://github.com/wellwelwel/sql-escaper/issues/9)) ([84d859b](https://github.com/wellwelwel/sql-escaper/commit/84d859bbc1bedbbfe81c2aa071684d55614e5e22))
+
+
+### Bug Fixes
+
+* preserve `JSON` path expressions ([#12](https://github.com/wellwelwel/sql-escaper/issues/12)) ([f580956](https://github.com/wellwelwel/sql-escaper/commit/f580956767c8edd45b7e95ffce3dec795722c0be))
+
 ## [1.1.2](https://github.com/wellwelwel/sql-escaper/compare/v1.1.1...v1.1.2) (2026-02-05)
 
 
