@@ -314,12 +314,12 @@ Each benchmark formats `10,000` queries using `format` with `100` mixed values (
 
 | Benchmark                                |  sqlstring | SQL Escaper |       Difference |
 | ---------------------------------------- | ---------: | ----------: | ---------------: |
-| Select 100 values                        |   460.9 ms |    242.2 ms | **1.90x faster** |
-| Insert 100 values                        |   468.6 ms |    242.5 ms | **1.93x faster** |
-| SET with 100 values                      |   484.2 ms |    257.0 ms | **1.88x faster** |
-| SET with 100 objects                     |   671.6 ms |    283.2 ms | **2.37x faster** |
-| ON DUPLICATE KEY UPDATE with 100 values  |   894.0 ms |    459.8 ms | **1.94x faster** |
-| ON DUPLICATE KEY UPDATE with 100 objects | 1,092.0 ms |    485.7 ms | **2.25x faster** |
+| Select 100 values                        |   450.3 ms |    178.1 ms | **2.53x faster** |
+| Insert 100 values                        |   453.2 ms |    198.0 ms | **2.29x faster** |
+| SET with 100 values                      |   471.3 ms |    213.8 ms | **2.20x faster** |
+| SET with 100 objects                     |   656.9 ms |    249.6 ms | **2.63x faster** |
+| ON DUPLICATE KEY UPDATE with 100 values  |   873.2 ms |    397.8 ms | **2.20x faster** |
+| ON DUPLICATE KEY UPDATE with 100 objects | 1,076.0 ms |    442.6 ms | **2.43x faster** |
 
 - See detailed results and how the benchmarks are run in the [**benchmark**](https://github.com/wellwelwel/sql-escaper/tree/main/benchmark) directory.
 
