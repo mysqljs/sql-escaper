@@ -330,11 +330,21 @@ Each benchmark formats `10,000` queries using `format` with `100` mixed values (
 
 ---
 
+## Features
+
+- **TypeScript** by default.
+- Ships both **CJS** and **ESM** exports.
+- Support multi lines, spaces and tables.
+- Support **SQL** comments, including multi line comments.
+- Distinguish when a keyword is used in a value.
+- Distinguish between `SET`, `KEY UPDATE`, and `WHERE` clauses in the same queries.
+- Distinguish when a column has a keyword name.
+
+---
+
 ## Differences from sqlstring
 
 - Requires **Node.js 12+** (the original [**sqlstring**](https://github.com/mysqljs/sqlstring) supports **Node.js** 0.6+)
-- **TypeScript** by default
-- Ships both **CJS** and **ESM** exports
 
 > [!TIP]
 >
