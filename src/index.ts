@@ -40,8 +40,8 @@ const charCode = {
   carriageReturn: 13,
 } as const;
 
-const isRecord = (val: unknown): val is Record<string, SqlValue> =>
-  typeof val === 'object' && val !== null && !Array.isArray(val);
+const isRecord = (value: unknown): value is Record<string, SqlValue> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 const isWordChar = (code: number): boolean =>
   (code >= 65 && code <= 90) ||
