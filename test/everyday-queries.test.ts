@@ -459,6 +459,35 @@ describe('Nice to have: escapeId edge cases', () => {
   });
 });
 
+describe('JSON path expressions with ?? placeholder', () => {
+  test('should handle JSON arrow operator with path expression', () => {
+    const query = format('SELECT * FROM ?? WHERE (?? = ?) LIMIT ?, ?', [
+      'certification',
+      "cert->>'$.name'",
+      'myname',
+      0,
+      20,
+    ]);
+
+    assert.equal(
+      query,
+      "SELECT * FROM `certification` WHERE (`cert->>'$.name'` = 'myname') LIMIT 0, 20"
+    );
+  });
+
+  test('escapeId should not break JSON path expressions', () => {
+    const escaped = escapeId("cert->>'$.name'");
+
+    assert.equal(escaped, "`cert->>'$.name'`");
+  });
+
+  test('escapeId with JSON double arrow operator', () => {
+    const escaped = escapeId("data->'$.user.address.city'");
+
+    assert.equal(escaped, "`data->'$.user.address.city'`");
+  });
+});
+
 describe('Nice to have: Deeply nested arrays', () => {
   test('triple nested array for bulk insert', () => {
     const data = [
