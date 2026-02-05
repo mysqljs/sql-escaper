@@ -7,7 +7,7 @@
 [![GitHub Workflow Status (Bun)](https://img.shields.io/github/actions/workflow/status/wellwelwel/sql-escaper/ci_bun.yml?event=push&label=&branch=main&logo=bun&logoColor=ffffff&color=f368e0)](https://github.com/wellwelwel/sql-escaper/actions/workflows/ci_bun.yml?query=branch%3Amain)
 [![GitHub Workflow Status (Deno)](https://img.shields.io/github/actions/workflow/status/wellwelwel/sql-escaper/ci_deno.yml?event=push&label=&branch=main&logo=deno&logoColor=ffffff&color=079992)](https://github.com/wellwelwel/sql-escaper/actions/workflows/ci_deno.yml?query=branch%3Amain)
 
-🛡️ Up to [**2x faster**](#performance) SQL escape and format for **JavaScript** (**Node.js**, **Bun**, and **Deno**).
+🛡️ Up to [**~40% faster**](#performance) SQL escape and format for **JavaScript** (**Node.js**, **Bun**, and **Deno**).
 
 </div>
 
@@ -312,14 +312,14 @@ import type { Raw, SqlValue, Timezone } from 'sql-escaper';
 
 Each benchmark formats `10,000` queries using `format` with `100` mixed values (numbers, strings, `null`, and dates), comparing **SQL Escaper** against the original [**sqlstring**](https://github.com/mysqljs/sqlstring) through [**hyperfine**](https://github.com/sharkdp/hyperfine):
 
-| Benchmark                                |  sqlstring | SQL Escaper |       Difference |
-| ---------------------------------------- | ---------: | ----------: | ---------------: |
-| Select 100 values                        |   450.3 ms |    178.1 ms | **2.53x faster** |
-| Insert 100 values                        |   453.2 ms |    198.0 ms | **2.29x faster** |
-| SET with 100 values                      |   471.3 ms |    213.8 ms | **2.20x faster** |
-| SET with 100 objects                     |   656.9 ms |    249.6 ms | **2.63x faster** |
-| ON DUPLICATE KEY UPDATE with 100 values  |   873.2 ms |    397.8 ms | **2.20x faster** |
-| ON DUPLICATE KEY UPDATE with 100 objects | 1,076.0 ms |    442.6 ms | **2.43x faster** |
+| Benchmark                                | sqlstring | SQL Escaper |       Difference |
+| ---------------------------------------- | --------: | ----------: | ---------------: |
+| Select 100 values                        |  248.8 ms |    178.7 ms | **1.39x faster** |
+| Insert 100 values                        |  247.5 ms |    196.2 ms | **1.26x faster** |
+| SET with 100 values                      |  257.5 ms |    205.2 ms | **1.26x faster** |
+| SET with 100 objects                     |  348.3 ms |    250.5 ms | **1.39x faster** |
+| ON DUPLICATE KEY UPDATE with 100 values  |  466.2 ms |    394.6 ms | **1.18x faster** |
+| ON DUPLICATE KEY UPDATE with 100 objects |  558.2 ms |    433.9 ms | **1.29x faster** |
 
 - See detailed results and how the benchmarks are run in the [**benchmark**](https://github.com/wellwelwel/sql-escaper/tree/main/benchmark) directory.
 
