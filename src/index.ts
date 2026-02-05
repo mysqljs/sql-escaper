@@ -102,15 +102,21 @@ const skipSqlContext = (sql: string, position: number): number => {
 };
 
 const findNextPlaceholder = (sql: string, start: number): number => {
-  for (let position = start; position < sql.length; position++) {
-    const contextEnd = skipSqlContext(sql, position);
+  const sqlLength = sql.length;
 
-    if (contextEnd !== -1) {
-      position = contextEnd - 1;
-      continue;
+  for (let position = start; position < sqlLength; position++) {
+    const code = sql.charCodeAt(position);
+    if (code === charCode.questionMark) return position;
+
+    if (
+      code === charCode.singleQuote ||
+      code === charCode.dash ||
+      code === charCode.slash
+    ) {
+      const contextEnd = skipSqlContext(sql, position);
+
+      if (contextEnd !== -1) position = contextEnd - 1;
     }
-
-    if (sql.charCodeAt(position) === charCode.questionMark) return position;
   }
 
   return -1;
@@ -120,16 +126,26 @@ const findSetKeyword = (sql: string): number => {
   const length = sql.length;
 
   for (let position = 0; position < length; position++) {
-    const contextEnd = skipSqlContext(sql, position);
+    const code = sql.charCodeAt(position);
+    const lower = code | 32;
 
-    if (contextEnd !== -1) {
-      position = contextEnd - 1;
-      continue;
+    if (
+      code === charCode.singleQuote ||
+      code === charCode.dash ||
+      code === charCode.slash
+    ) {
+      const contextEnd = skipSqlContext(sql, position);
+
+      if (contextEnd !== -1) {
+        position = contextEnd - 1;
+        continue;
+      }
     }
 
-    if (matchesWord(sql, position, 'set', length)) return position;
+    if (lower === 115 && matchesWord(sql, position, 'set', length))
+      return position;
 
-    if (matchesWord(sql, position, 'key', length)) {
+    if (lower === 107 && matchesWord(sql, position, 'key', length)) {
       let cursor = position + 3;
 
       while (cursor < length && isWhitespace(sql.charCodeAt(cursor))) cursor++;
@@ -162,8 +178,8 @@ const escapeString = (value: string): string => {
     match !== null;
     match = regex.escapeChars.exec(value)
   ) {
-    escapedValue +=
-      value.slice(chunkIndex, match.index) + CHARS_ESCAPE_MAP[match[0]];
+    escapedValue += value.slice(chunkIndex, match.index);
+    escapedValue += CHARS_ESCAPE_MAP[match[0]];
     chunkIndex = regex.escapeChars.lastIndex;
   }
 
@@ -175,8 +191,19 @@ const escapeString = (value: string): string => {
   return `'${escapedValue}'`;
 };
 
-const pad = (number: number, length: number): string =>
-  String(number).padStart(length, '0');
+const pad2 = (value: number): string => (value < 10 ? '0' + value : '' + value);
+
+const pad3 = (value: number): string =>
+  value < 10 ? '00' + value : value < 100 ? '0' + value : '' + value;
+
+const pad4 = (value: number): string =>
+  value < 10
+    ? '000' + value
+    : value < 100
+      ? '00' + value
+      : value < 1000
+        ? '0' + value
+        : '' + value;
 
 const convertTimezone = (tz: Timezone): number | false => {
   if (tz === 'Z') return 0;
@@ -194,9 +221,7 @@ const convertTimezone = (tz: Timezone): number | false => {
 };
 
 export const dateToString = (date: Date, timezone: Timezone): string => {
-  const adjustedDate = new Date(date);
-
-  if (Number.isNaN(adjustedDate.getTime())) return 'NULL';
+  if (Number.isNaN(date.getTime())) return 'NULL';
 
   let year: number;
   let month: number;
@@ -207,21 +232,21 @@ export const dateToString = (date: Date, timezone: Timezone): string => {
   let millisecond: number;
 
   if (timezone === 'local') {
-    year = adjustedDate.getFullYear();
-    month = adjustedDate.getMonth() + 1;
-    day = adjustedDate.getDate();
-    hour = adjustedDate.getHours();
-    minute = adjustedDate.getMinutes();
-    second = adjustedDate.getSeconds();
-    millisecond = adjustedDate.getMilliseconds();
+    year = date.getFullYear();
+    month = date.getMonth() + 1;
+    day = date.getDate();
+    hour = date.getHours();
+    minute = date.getMinutes();
+    second = date.getSeconds();
+    millisecond = date.getMilliseconds();
   } else {
     const timezoneOffsetMinutes = convertTimezone(timezone);
+    let time = date.getTime();
 
-    if (timezoneOffsetMinutes !== false && timezoneOffsetMinutes !== 0) {
-      adjustedDate.setTime(
-        adjustedDate.getTime() + timezoneOffsetMinutes * 60000
-      );
-    }
+    if (timezoneOffsetMinutes !== false && timezoneOffsetMinutes !== 0)
+      time += timezoneOffsetMinutes * 60000;
+
+    const adjustedDate = new Date(time);
 
     year = adjustedDate.getUTCFullYear();
     month = adjustedDate.getUTCMonth() + 1;
@@ -233,15 +258,21 @@ export const dateToString = (date: Date, timezone: Timezone): string => {
   }
 
   // YYYY-MM-DD HH:mm:ss.mmm
-  const formattedDateTime = `${pad(year, 4)}-${pad(month, 2)}-${pad(
-    day,
-    2
-  )} ${pad(hour, 2)}:${pad(minute, 2)}:${pad(second, 2)}.${pad(
-    millisecond,
-    3
-  )}`;
-
-  return escapeString(formattedDateTime);
+  return escapeString(
+    pad4(year) +
+      '-' +
+      pad2(month) +
+      '-' +
+      pad2(day) +
+      ' ' +
+      pad2(hour) +
+      ':' +
+      pad2(minute) +
+      ':' +
+      pad2(second) +
+      '.' +
+      pad3(millisecond)
+  );
 };
 
 export const escapeId = (
@@ -278,18 +309,23 @@ export const objectToValues = (
   object: Record<string, SqlValue>,
   timezone?: Timezone
 ): string => {
+  const keys = Object.keys(object);
+  const keysLength = keys.length;
+
+  if (keysLength === 0) return '';
+
   let sql = '';
 
-  for (const key in object) {
+  for (let i = 0; i < keysLength; i++) {
+    const key = keys[i]!;
     const value = object[key];
 
     if (typeof value === 'function') continue;
 
-    sql += `${(sql.length === 0 ? '' : ', ') + escapeId(key)} = ${escape(
-      value,
-      true,
-      timezone
-    )}`;
+    if (sql.length > 0) sql += ', ';
+    sql += escapeId(key);
+    sql += ' = ';
+    sql += escape(value, true, timezone);
   }
 
   return sql;
@@ -401,7 +437,8 @@ export const format = (
       else escapedValue = escape(currentValue, stringifyObjects, timezone);
     } else escapedValue = escape(currentValue, stringifyObjects, timezone);
 
-    result += sql.slice(chunkIndex, placeholderPosition) + escapedValue;
+    result += sql.slice(chunkIndex, placeholderPosition);
+    result += escapedValue;
     chunkIndex = placeholderEnd;
     valuesIndex++;
     placeholderPosition = findNextPlaceholder(sql, placeholderEnd);
