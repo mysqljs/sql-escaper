@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/wellwelwel/sql-escaper/compare/v1.1.0...v1.1.1) (2026-02-05)
+
+
+### Bug Fixes
+
+* prevent object expansion in placeholders after `SET` clause ([#5](https://github.com/wellwelwel/sql-escaper/issues/5)) ([557bd7f](https://github.com/wellwelwel/sql-escaper/commit/557bd7fe17b92dc2b36235721ee4f45afa3101b4))
+
 ## [1.1.0](https://github.com/wellwelwel/sql-escaper/compare/v1.0.0...v1.1.0) (2026-02-05)
 
 
