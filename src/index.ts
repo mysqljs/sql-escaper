@@ -312,8 +312,9 @@ export const escapeId = (
   }
 
   const identifier = String(value);
+  const hasJsonOperator = identifier.indexOf('->') !== -1;
 
-  if (forbidQualified) {
+  if (forbidQualified || hasJsonOperator) {
     if (identifier.indexOf('`') === -1) return `\`${identifier}\``;
 
     return `\`${identifier.replace(regex.backtick, '``')}\``;
