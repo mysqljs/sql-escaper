@@ -388,6 +388,8 @@ export const escape = (
       if (isDate(value)) return dateToString(value, timezone || 'local');
       if (Array.isArray(value)) return arrayToList(value, timezone);
       if (Buffer.isBuffer(value)) return bufferToString(value);
+      if (value instanceof Uint8Array)
+        return bufferToString(Buffer.from(value));
       if (hasSqlString(value)) return String(value.toSqlString());
       if (!(stringifyObjects === undefined || stringifyObjects === null))
         return escapeString(String(value));
@@ -453,6 +455,7 @@ export const format = (
         !hasSqlString(currentValue) &&
         !Array.isArray(currentValue) &&
         !Buffer.isBuffer(currentValue) &&
+        !(currentValue instanceof Uint8Array) &&
         !isDate(currentValue) &&
         isRecord(currentValue)
       ) {

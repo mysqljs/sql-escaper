@@ -8,6 +8,7 @@ export type SqlValue =
   | boolean
   | Date
   | Buffer
+  | Uint8Array
   | Raw
   | Record<string, unknown>
   | SqlValue[]
