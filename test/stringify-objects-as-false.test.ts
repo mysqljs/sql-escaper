@@ -209,6 +209,47 @@ describe('Object placeholder after SET but outside SET clause', () => {
   });
 });
 
+describe('BigInt parameter', () => {
+  it('should format BigInt as numeric string', () => {
+    const query = format('SELECT * FROM users WHERE id = ?', [
+      BigInt('9007199254740991'),
+    ]);
+
+    assert.strictEqual(
+      query,
+      'SELECT * FROM users WHERE id = 9007199254740991'
+    );
+  });
+
+  it('should format BigInt in INSERT statements', () => {
+    const query = format('INSERT INTO stats (value) VALUES (?)', [
+      BigInt('123456789012345678901234567890'),
+    ]);
+
+    assert.strictEqual(
+      query,
+      'INSERT INTO stats (value) VALUES (123456789012345678901234567890)'
+    );
+  });
+
+  it('should format negative BigInt', () => {
+    const query = format('SELECT * FROM accounts WHERE balance = ?', [
+      BigInt('-9007199254740991'),
+    ]);
+
+    assert.strictEqual(
+      query,
+      'SELECT * FROM accounts WHERE balance = -9007199254740991'
+    );
+  });
+
+  it('should format BigInt zero', () => {
+    const query = format('SELECT * FROM counters WHERE count = ?', [BigInt(0)]);
+
+    assert.strictEqual(query, 'SELECT * FROM counters WHERE count = 0');
+  });
+});
+
 describe('Uint8Array parameter', () => {
   it('should format Uint8Array as hex string', () => {
     const data = new Uint8Array([0x48, 0x65, 0x6c, 0x6c, 0x6f]); // "Hello" in hex

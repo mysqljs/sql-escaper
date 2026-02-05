@@ -382,6 +382,8 @@ export const escape = (
       return value ? 'true' : 'false';
 
     case 'number':
+
+    case 'bigint':
       return value + '';
 
     case 'object': {

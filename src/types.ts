@@ -5,6 +5,7 @@ export type Raw = {
 export type SqlValue =
   | string
   | number
+  | bigint
   | boolean
   | Date
   | Buffer
