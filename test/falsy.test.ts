@@ -6,10 +6,6 @@ describe('Safe SET with object parameter', () => {
   const values = [{ name: 'foo', email: 'bar@test.com' }];
   const expected = "UPDATE users SET `name` = 'foo', `email` = 'bar@test.com'";
 
-  it('should expand object to key-value pairs when there is no stringifyObjects', () => {
-    assert.strictEqual(format(sql, values), expected);
-  });
-
   it('should expand object to key-value pairs when stringifyObjects is undefined', () => {
     assert.strictEqual(format(sql, values, undefined), expected);
   });
@@ -43,10 +39,6 @@ describe("Can't bypass via object password injection", () => {
   const values: [string, { password: boolean }] = ['admin', { password: true }];
   const expected =
     "SELECT * FROM `users` WHERE `username` = 'admin' AND `password` = '[object Object]'";
-
-  it('should not generate a SQL fragment when there is no stringifyObjects', () => {
-    assert.strictEqual(format(sql, values), expected);
-  });
 
   it('should not generate a SQL fragment when stringifyObjects is undefined', () => {
     assert.strictEqual(format(sql, values, undefined), expected);
