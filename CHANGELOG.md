@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/mysqljs/sql-escaper/compare/v1.2.0...v1.3.0) (2026-02-10)
+
+
+### Features
+
+* migrate project to `mysqljs` organization ([#13](https://github.com/mysqljs/sql-escaper/issues/13)) ([afbf314](https://github.com/mysqljs/sql-escaper/commit/afbf31455a45eb8c02c665ce045e9625cfd01b74))
+
 ## [1.2.0](https://github.com/mysqljs/sql-escaper/compare/v1.1.2...v1.2.0) (2026-02-05)
 
 
