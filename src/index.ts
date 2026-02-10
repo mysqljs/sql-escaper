@@ -464,7 +464,7 @@ export const format = (
       ) {
         escapedValue = objectToValues(currentValue, timezone);
         setIndex = -1;
-      } else escapedValue = escape(currentValue, stringifyObjects, timezone);
+      } else escapedValue = escape(currentValue, true, timezone);
     } else escapedValue = escape(currentValue, stringifyObjects, timezone);
 
     result += sql.slice(chunkIndex, placeholderPosition);
