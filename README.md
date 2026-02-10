@@ -1,7 +1,8 @@
 # SQL Escaper
 
 [![NPM Version](https://img.shields.io/npm/v/sql-escaper.svg?label=&color=70a1ff&logo=npm&logoColor=white)](https://www.npmjs.com/package/sql-escaper)
-[![NPM Downloads](https://img.shields.io/npm/dm/sql-escaper.svg?label=&logo=npm&logoColor=white&color=45aaf2)](https://www.npmjs.com/package/sql-escaper)<br />
+[![NPM Downloads](https://img.shields.io/npm/dm/sql-escaper.svg?label=&logo=npm&logoColor=white&color=45aaf2)](https://www.npmjs.com/package/sql-escaper)
+[![Coverage](https://img.shields.io/codecov/c/github/mysqljs/sql-escaper?label=&logo=codecov&logoColor=white&color=98cc00)](https://app.codecov.io/gh/mysqljs/sql-escaper)<br />
 [![GitHub Workflow Status (Node.js)](https://img.shields.io/github/actions/workflow/status/mysqljs/sql-escaper/ci_node.yml?event=push&label=&branch=main&logo=nodedotjs&logoColor=535c68&color=badc58)](https://github.com/mysqljs/sql-escaper/actions/workflows/ci_node.yml?query=branch%3Amain)
 [![GitHub Workflow Status (Bun)](https://img.shields.io/github/actions/workflow/status/mysqljs/sql-escaper/ci_bun.yml?event=push&label=&branch=main&logo=bun&logoColor=ffffff&color=f368e0)](https://github.com/mysqljs/sql-escaper/actions/workflows/ci_bun.yml?query=branch%3Amain)
 [![GitHub Workflow Status (Deno)](https://img.shields.io/github/actions/workflow/status/mysqljs/sql-escaper/ci_deno.yml?event=push&label=&branch=main&logo=deno&logoColor=ffffff&color=079992)](https://github.com/mysqljs/sql-escaper/actions/workflows/ci_deno.yml?query=branch%3Amain)
