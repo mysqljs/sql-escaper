@@ -2,7 +2,7 @@
 
 ## Is SQL Escaper Safe?
 
-**SQL Escaper** is an open-source project, so you can see both the [Source Code on **GitHub** Repository](https://github.com/wellwelwel/sql-escaper) and the [Distribution Code on **NPM**](https://www.npmjs.com/package/sql-escaper?activeTab=code).
+**SQL Escaper** is an _open-source_ project, so you can see both the [Source Code on **GitHub** Repository](https://github.com/mysqljs/sql-escaper) and the [Distribution Code on **NPM**](https://www.npmjs.com/package/sql-escaper?activeTab=code).
 
 ---
 
@@ -25,6 +25,6 @@ Currently, security updates will be applied to the following versions of **SQL E
 
 **Reporting:**
 
-- https://github.com/wellwelwel/sql-escaper/security/advisories
+- https://github.com/mysqljs/sql-escaper/security/advisories
 
 > Once the issue has been resolved, you will be attributed a part of the report.
