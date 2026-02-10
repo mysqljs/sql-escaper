@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/mysqljs/sql-escaper/compare/v1.3.0...v1.3.1) (2026-02-10)
+
+
+### Bug Fixes
+
+* ensure correct behavior for `Falsy` params ([#16](https://github.com/mysqljs/sql-escaper/issues/16)) ([d435edb](https://github.com/mysqljs/sql-escaper/commit/d435edb3dfa709c01cbfc101a0ece3663efaf60d))
+
 ## [1.3.0](https://github.com/mysqljs/sql-escaper/compare/v1.2.0...v1.3.0) (2026-02-10)
 
 
