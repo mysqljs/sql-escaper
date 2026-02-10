@@ -1,15 +1,37 @@
-<h1 align="center">SQL Escaper</h1>
-<div align="center">
+# SQL Escaper
 
 [![NPM Version](https://img.shields.io/npm/v/sql-escaper.svg?label=&color=70a1ff&logo=npm&logoColor=white)](https://www.npmjs.com/package/sql-escaper)
-[![Coverage](https://img.shields.io/codecov/c/github/wellwelwel/sql-escaper?label=&logo=codecov&logoColor=white&color=98cc00)](https://app.codecov.io/gh/wellwelwel/sql-escaper)<br />
-[![GitHub Workflow Status (Node.js)](https://img.shields.io/github/actions/workflow/status/wellwelwel/sql-escaper/ci_node.yml?event=push&label=&branch=main&logo=nodedotjs&logoColor=535c68&color=badc58)](https://github.com/wellwelwel/sql-escaper/actions/workflows/ci_node.yml?query=branch%3Amain)
-[![GitHub Workflow Status (Bun)](https://img.shields.io/github/actions/workflow/status/wellwelwel/sql-escaper/ci_bun.yml?event=push&label=&branch=main&logo=bun&logoColor=ffffff&color=f368e0)](https://github.com/wellwelwel/sql-escaper/actions/workflows/ci_bun.yml?query=branch%3Amain)
-[![GitHub Workflow Status (Deno)](https://img.shields.io/github/actions/workflow/status/wellwelwel/sql-escaper/ci_deno.yml?event=push&label=&branch=main&logo=deno&logoColor=ffffff&color=079992)](https://github.com/wellwelwel/sql-escaper/actions/workflows/ci_deno.yml?query=branch%3Amain)
+[![NPM Downloads](https://img.shields.io/npm/dm/sql-escaper.svg?label=&logo=npm&logoColor=white&color=45aaf2)](https://www.npmjs.com/package/sql-escaper)<br />
+[![GitHub Workflow Status (Node.js)](https://img.shields.io/github/actions/workflow/status/mysqljs/sql-escaper/ci_node.yml?event=push&label=&branch=main&logo=nodedotjs&logoColor=535c68&color=badc58)](https://github.com/mysqljs/sql-escaper/actions/workflows/ci_node.yml?query=branch%3Amain)
+[![GitHub Workflow Status (Bun)](https://img.shields.io/github/actions/workflow/status/mysqljs/sql-escaper/ci_bun.yml?event=push&label=&branch=main&logo=bun&logoColor=ffffff&color=f368e0)](https://github.com/mysqljs/sql-escaper/actions/workflows/ci_bun.yml?query=branch%3Amain)
+[![GitHub Workflow Status (Deno)](https://img.shields.io/github/actions/workflow/status/mysqljs/sql-escaper/ci_deno.yml?event=push&label=&branch=main&logo=deno&logoColor=ffffff&color=079992)](https://github.com/mysqljs/sql-escaper/actions/workflows/ci_deno.yml?query=branch%3Amain)
 
-🛡️ Up to [**~40% faster**](#performance) SQL escape and format for **JavaScript** (**Node.js**, **Bun**, and **Deno**).
+## Motivation
 
-</div>
+**SQL Escaper** is a rework of [**sqlstring**](https://github.com/mysqljs/sqlstring) (created by [**Douglas Wilson**](https://github.com/dougwilson)), by using an **AST**-based approach to parse and format SQL queries while maintaining its same API.
+
+### Rework includes:
+
+- **TypeScript** by default.
+- Support for `Uint8Array` and `BigInt`.
+- Support for both **CJS** and **ESM** exports.
+- Up to [**~40% faster**](#performance) compared to **sqlstring**.
+- Distinguishes when a keyword is used as value.
+- Distinguishes when a column has a keyword name.
+- Distinguishes between multiple clauses/keywords in the same query.
+- Reasonable conservative support for **Node.js v12** _(**sqlstring** supports **Node.js v0.6**)_.
+
+> [!TIP]
+>
+> **SQL Escaper** has the same API as the original [**sqlstring**](https://github.com/mysqljs/sqlstring), so it can be used as a drop-in replacement. If **SQL Escaper** breaks any **API** usage compared to **sqlstring**, please, report it as a bug. [Pull Requests are welcome](./CONTRIBUTING.md).
+
+> [!IMPORTANT]
+>
+> 🔐 **SQL Escaper** is intended to fix a potential [**SQL Injection vulnerability**](https://flattsecurity.medium.com/finding-an-unseen-sql-injection-by-bypassing-escape-functions-in-mysqljs-mysql-90b27f6542b4) reported in 2022. By combining the original [**sqlstring**](https://github.com/mysqljs/sqlstring) with [**mysqljs/mysql**](https://github.com/mysqljs/mysql) or [**MySQL2**](https://github.com/sidorares/node-mysql2), objects passed as values could be expanded into **SQL** fragments, potentially allowing attackers to manipulate query structure. See [sidorares/node-mysql2#4051](https://github.com/sidorares/node-mysql2/issues/4051) for details.
+>
+> Regardless of the `stringifyObjects` value, objects used outside of `SET` or `ON DUPLICATE KEY UPDATE` contexts are always stringified as `'[object Object]'`. This is a security measure to prevent [SQL Injection](https://flattsecurity.medium.com/finding-an-unseen-sql-injection-by-bypassing-escape-functions-in-mysqljs-mysql-90b27f6542b4).
+
+---
 
 ## Install
 
@@ -28,15 +50,9 @@ bun add sql-escaper
 deno add npm:sql-escaper
 ```
 
-> [!NOTE]
->
-> 🔐 **SQL Escaper** fixes a potential [**SQL Injection vulnerability**](https://flattsecurity.medium.com/finding-an-unseen-sql-injection-by-bypassing-escape-functions-in-mysqljs-mysql-90b27f6542b4) discovered in 2022 in the original [**sqlstring**](https://github.com/mysqljs/sqlstring), where objects passed as values could be expanded into SQL fragments, potentially allowing attackers to manipulate query structure. See [sidorares/node-mysql2#4051](https://github.com/sidorares/node-mysql2/issues/4051) for details.
-
 ---
 
 ## Usage
-
-💡 **SQL Escaper** has the same API as the original [**sqlstring**](https://github.com/mysqljs/sqlstring), so it can be used as a drop-in replacement.
 
 ### Quickstart
 
@@ -59,7 +75,7 @@ escape(raw('NOW()'));
 // => 'NOW()'
 ```
 
-> For _up-to-date_ documentation, always follow the [**README.md**](https://github.com/wellwelwel/sql-escaper?tab=readme-ov-file#readme) in the **GitHub** repository.
+> For _up-to-date_ documentation, always follow the [**README.md**](https://github.com/mysqljs/sql-escaper?tab=readme-ov-file#readme) in the **GitHub** repository.
 
 ### Import
 
@@ -268,10 +284,6 @@ format('UPDATE users SET ?', [{ name: 'foo' }], true);
 // => "UPDATE users SET '[object Object]'"
 ```
 
-> [!IMPORTANT]
->
-> Regardless of the `stringifyObjects` value, objects used outside of `SET` or `ON DUPLICATE KEY UPDATE` contexts are always stringified as `'[object Object]'`. This is a security measure to prevent [SQL Injection](https://flattsecurity.medium.com/finding-an-unseen-sql-injection-by-bypassing-escape-functions-in-mysqljs-mysql-90b27f6542b4).
-
 ---
 
 ### raw
@@ -321,24 +333,12 @@ Each benchmark formats `10,000` queries using `format` with `100` mixed values (
 | ON DUPLICATE KEY UPDATE with 100 values  |  466.2 ms |    394.6 ms | **1.18x faster** |
 | ON DUPLICATE KEY UPDATE with 100 objects |  558.2 ms |    433.9 ms | **1.29x faster** |
 
-- See detailed results and how the benchmarks are run in the [**benchmark**](https://github.com/wellwelwel/sql-escaper/tree/main/benchmark) directory.
+- See detailed results and how the benchmarks are run in the [**benchmark**](https://github.com/mysqljs/sql-escaper/tree/main/benchmark) directory.
 
 > [!NOTE]
 >
-> Benchmarks ran on [**GitHub Actions**](https://github.com/wellwelwel/sql-escaper/blob/main/.github/workflows/ci_benchmark.yml) (`ubuntu-latest`) using **Node.js LTS**.
+> Benchmarks ran on [**GitHub Actions**](https://github.com/mysqljs/sql-escaper/blob/main/.github/workflows/ci_benchmark.yml) (`ubuntu-latest`) using **Node.js LTS**.
 > Results may vary depending on runner hardware and runtime version.
-
----
-
-## Features
-
-- **TypeScript** by default.
-- Ships both **CJS** and **ESM** exports.
-- Support multi lines, spaces and tables.
-- Support **SQL** comments, including multi line comments.
-- Distinguish when a keyword is used in a value.
-- Distinguish between `SET`, `KEY UPDATE`, and `WHERE` clauses in the same queries.
-- Distinguish when a column has a keyword name.
 
 ---
 
@@ -372,21 +372,21 @@ Each benchmark formats `10,000` queries using `format` with `100` mixed values (
 
 ## Security Policy
 
-[![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/wellwelwel/sql-escaper/ci_codeql.yml?event=push&label=&branch=main&logo=github&logoColor=white&color=f368e0)](https://github.com/wellwelwel/sql-escaper/actions/workflows/ci_codeql.yml?query=branch%3Amain)
+[![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/mysqljs/sql-escaper/ci_codeql.yml?event=push&label=&branch=main&logo=github&logoColor=white&color=f368e0)](https://github.com/mysqljs/sql-escaper/actions/workflows/ci_codeql.yml?query=branch%3Amain)
 
-Please check the [**SECURITY.md**](https://github.com/wellwelwel/sql-escaper/blob/main/SECURITY.md).
+Please check the [**SECURITY.md**](https://github.com/mysqljs/sql-escaper/blob/main/SECURITY.md).
 
 ---
 
 ## Contributing
 
-See the [**Contributing Guide**](https://github.com/wellwelwel/sql-escaper/blob/main/CONTRIBUTING.md) and please follow our [**Code of Conduct**](https://github.com/wellwelwel/sql-escaper/blob/main/CODE_OF_CONDUCT.md) 🚀
+See the [**Contributing Guide**](https://github.com/mysqljs/sql-escaper/blob/main/CONTRIBUTING.md) and please follow our [**Code of Conduct**](https://github.com/mysqljs/sql-escaper/blob/main/CODE_OF_CONDUCT.md) 🚀
 
 ---
 
 ## Acknowledgements
 
-- [![Contributors](https://img.shields.io/github/contributors/wellwelwel/sql-escaper?label=Contributors)](https://github.com/wellwelwel/sql-escaper/graphs/contributors)
+- [![Contributors](https://img.shields.io/github/contributors/mysqljs/sql-escaper?label=Contributors)](https://github.com/mysqljs/sql-escaper/graphs/contributors)
 - **SQL Escaper** is adapted from [**sqlstring**](https://github.com/mysqljs/sqlstring) ([**MIT**](https://github.com/mysqljs/sqlstring/blob/master/LICENSE)), modernizing it with high performance, TypeScript support and multi-runtime compatibility.
 - Special thanks to [**Douglas Wilson**](https://github.com/dougwilson) for the original **sqlstring** project and its [**contributors**](https://github.com/mysqljs/sqlstring/graphs/contributors).
 
@@ -394,5 +394,4 @@ See the [**Contributing Guide**](https://github.com/wellwelwel/sql-escaper/blob/
 
 ## License
 
-**SQL Escaper** is under the [**MIT License**](https://github.com/wellwelwel/sql-escaper/blob/main/LICENSE).<br />
-Copyright © 2026-present [**Weslley Araújo**](https://github.com/wellwelwel) and **SQL Escaper** [**contributors**](https://github.com/wellwelwel/sql-escaper/graphs/contributors).
+**SQL Escaper** is under the [**MIT License**](https://github.com/mysqljs/sql-escaper/blob/main/LICENSE).

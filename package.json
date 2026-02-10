@@ -8,15 +8,15 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/wellwelwel/sql-escaper.git"
+    "url": "git+https://github.com/mysqljs/sql-escaper.git"
   },
   "bugs": {
-    "url": "https://github.com/wellwelwel/sql-escaper/issues"
+    "url": "https://github.com/mysqljs/sql-escaper/issues"
   },
-  "author": "https://github.com/wellwelwel",
+  "author": "https://github.com/mysqljs",
   "funding": {
     "type": "github",
-    "url": "https://github.com/sponsors/wellwelwel"
+    "url": "https://github.com/mysqljs/sql-escaper?sponsor=1"
   },
   "files": [
     "lib"
