@@ -16,7 +16,7 @@
 - **TypeScript** by default.
 - Support for `Uint8Array` and `BigInt`.
 - Support for both **CJS** and **ESM** exports.
-- Up to [**~50% faster**](#performance) compared to **sqlstring**.
+- Up to [**~40% faster**](#performance) compared to **sqlstring**.
 - Distinguishes when a keyword is used as value.
 - Distinguishes when a column has a keyword name.
 - Distinguishes between multiple clauses/keywords in the same query.
@@ -353,12 +353,12 @@ Each benchmark formats `10,000` queries using `format` with `100` mixed values (
 
 | Benchmark                                | sqlstring | SQL Escaper |       Difference |
 | ---------------------------------------- | --------: | ----------: | ---------------: |
-| Select 100 values                        |  264.6 ms |    170.3 ms | **1.55x faster** |
-| Insert 100 values                        |  266.0 ms |    189.2 ms | **1.41x faster** |
-| SET with 100 values                      |  273.9 ms |    196.1 ms | **1.40x faster** |
-| SET with 100 objects                     |  360.7 ms |    249.3 ms | **1.45x faster** |
-| ON DUPLICATE KEY UPDATE with 100 values  |  515.7 ms |    375.9 ms | **1.37x faster** |
-| ON DUPLICATE KEY UPDATE with 100 objects |  598.4 ms |    441.5 ms | **1.36x faster** |
+| Select 100 values                        |  248.8 ms |    178.7 ms | **1.39x faster** |
+| Insert 100 values                        |  247.5 ms |    196.2 ms | **1.26x faster** |
+| SET with 100 values                      |  257.5 ms |    205.2 ms | **1.26x faster** |
+| SET with 100 objects                     |  348.3 ms |    250.5 ms | **1.39x faster** |
+| ON DUPLICATE KEY UPDATE with 100 values  |  466.2 ms |    394.6 ms | **1.18x faster** |
+| ON DUPLICATE KEY UPDATE with 100 objects |  558.2 ms |    433.9 ms | **1.29x faster** |
 
 - See detailed results and how the benchmarks are run in the [**benchmark**](https://github.com/mysqljs/sql-escaper/tree/main/benchmark) directory.
 
