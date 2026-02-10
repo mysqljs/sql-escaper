@@ -53,6 +53,34 @@ deno add npm:sql-escaper
 
 ---
 
+### [MySQL2](https://github.com/sidorares/node-mysql2)
+
+🚧 For **MySQL2**, it already uses **SQL Escaper** as its default escaping library since version `3.17.0`, so you just need to update it to the latest version:
+
+```bash
+npm i mysql2@latest # soon
+```
+
+- Check the progress migration in [sidorares/node-mysql2#4054](https://github.com/sidorares/node-mysql2/pull/4054).
+
+### [mysqljs/mysql](https://github.com/mysqljs/mysql)
+
+You can use an overrides in your _package.json_:
+
+```json
+"dependencies": {
+  "mysql": "^2.18.1"
+},
+"overrides": {
+  "sqlstring": "npm:sql-escaper"
+}
+```
+
+- Next, clean the `node_modules` and reinstall the dependencies (`npm i`).
+- Please, note the minimum supported version of **Node.js** is `12`.
+
+---
+
 ## Usage
 
 ### Quickstart
