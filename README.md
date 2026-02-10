@@ -55,13 +55,11 @@ deno add npm:sql-escaper
 
 ### [MySQL2](https://github.com/sidorares/node-mysql2)
 
-🚧 For **MySQL2**, it already uses **SQL Escaper** as its default escaping library since version `3.17.0`, so you just need to update it to the latest version:
+For **MySQL2**, it already uses **SQL Escaper** as its default escaping library since version `3.17.0`, so you just need to update it to the latest version:
 
 ```bash
-npm i mysql2@latest # soon
+npm i mysql2@latest
 ```
-
-- Check the progress migration in [sidorares/node-mysql2#4054](https://github.com/sidorares/node-mysql2/pull/4054).
 
 ### [mysqljs/mysql](https://github.com/mysqljs/mysql)
 
@@ -83,6 +81,8 @@ You can use an overrides in your _package.json_:
 
 ## Usage
 
+For _up-to-date_ documentation, always follow the [**README.md**](https://github.com/mysqljs/sql-escaper?tab=readme-ov-file#readme) in the **GitHub** repository.
+
 ### Quickstart
 
 ```js
@@ -103,8 +103,6 @@ format('INSERT INTO users SET ?', [{ name: 'foo', email: 'bar@test.com' }]);
 escape(raw('NOW()'));
 // => 'NOW()'
 ```
-
-> For _up-to-date_ documentation, always follow the [**README.md**](https://github.com/mysqljs/sql-escaper?tab=readme-ov-file#readme) in the **GitHub** repository.
 
 ### Import
 
