@@ -144,10 +144,10 @@ const findNextPlaceholder = (sql: string, start: number): number => {
   return -1;
 };
 
-const findSetKeyword = (sql: string): number => {
+const findSetKeyword = (sql: string, startFrom = 0): number => {
   const length = sql.length;
 
-  for (let position = 0; position < length; position++) {
+  for (let position = startFrom; position < length; position++) {
     const code = sql.charCodeAt(position);
     const lower = code | 32;
 
@@ -463,7 +463,7 @@ export const format = (
         isRecord(currentValue)
       ) {
         escapedValue = objectToValues(currentValue, timezone);
-        setIndex = -1;
+        setIndex = findSetKeyword(sql, placeholderEnd);
       } else escapedValue = escape(currentValue, true, timezone);
     } else escapedValue = escape(currentValue, stringifyObjects, timezone);
 

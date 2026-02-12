@@ -148,6 +148,27 @@ describe('Critical: ON DUPLICATE KEY UPDATE with raw() values', () => {
       "INSERT INTO t (id, name) VALUES (1, 'test') ON DUPLICATE KEY UPDATE `name` = 'updated', `modified` = CURRENT_TIMESTAMP"
     );
   });
+
+  test('INSERT ... SET ? ON DUPLICATE KEY UPDATE ? with two objects', () => {
+    const dataInsert = {
+      aula: 'Math101',
+      fecha: '2024-01-15',
+      texto: 'Lesson content',
+      tipo: 'lecture',
+      imagen: 'image.png',
+      file: 'notes.pdf',
+    };
+    const { aula, fecha, tipo, ...dataUpdate } = dataInsert;
+    const sql = format(
+      'INSERT INTO column SET ? ON DUPLICATE KEY UPDATE ?',
+      [dataInsert, dataUpdate],
+      false
+    );
+    assert.equal(
+      sql,
+      "INSERT INTO column SET `aula` = 'Math101', `fecha` = '2024-01-15', `texto` = 'Lesson content', `tipo` = 'lecture', `imagen` = 'image.png', `file` = 'notes.pdf' ON DUPLICATE KEY UPDATE `texto` = 'Lesson content', `imagen` = 'image.png', `file` = 'notes.pdf'"
+    );
+  });
 });
 
 describe('Critical: stringifyObjects=undefined (mysqljs/mysql legacy mode)', () => {
