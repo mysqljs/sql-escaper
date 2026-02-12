@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.2](https://github.com/mysqljs/sql-escaper/compare/v1.3.1...v1.3.2) (2026-02-12)
+
+
+### Bug Fixes
+
+* expand object params after `ON DUPLICATE KEY UPDATE` preceded by `SET` ([#19](https://github.com/mysqljs/sql-escaper/issues/19)) ([a0b2473](https://github.com/mysqljs/sql-escaper/commit/a0b2473461ef3f893700fb0b1ff4df400ca5dcd5))
+
 ## [1.3.1](https://github.com/mysqljs/sql-escaper/compare/v1.3.0...v1.3.1) (2026-02-10)
 
 
