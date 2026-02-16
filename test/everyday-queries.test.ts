@@ -544,3 +544,67 @@ describe('Nice to have: Boolean in various contexts', () => {
     assert.equal(sql, 'UPDATE t SET `active` = true, `archived` = false');
   });
 });
+
+describe('Critical: Backtick-quoted identifiers with comment-like sequences', () => {
+  test('database/table names with double dashes', () => {
+    const sql = format(
+      'INSERT INTO `db--name`.`table`(`a`, `b`) VALUES (?, ?)',
+      [1, 'hello']
+    );
+    assert.equal(
+      sql,
+      "INSERT INTO `db--name`.`table`(`a`, `b`) VALUES (1, 'hello')"
+    );
+  });
+
+  test('column names with double dashes', () => {
+    const sql = format(
+      'INSERT INTO t (`col--1`, `col--2`) VALUES (?, ?)',
+      [1, 2]
+    );
+    assert.equal(sql, 'INSERT INTO t (`col--1`, `col--2`) VALUES (1, 2)');
+  });
+
+  test('backticks with block comment markers', () => {
+    const sql = format('INSERT INTO `table/*name*/` VALUES (?)', [1]);
+    assert.equal(sql, 'INSERT INTO `table/*name*/` VALUES (1)');
+  });
+
+  test('escaped backticks inside identifiers', () => {
+    const sql = format('INSERT INTO `table``name` VALUES (?)', [1]);
+    assert.equal(sql, 'INSERT INTO `table``name` VALUES (1)');
+  });
+
+  test('multiple backtick identifiers with mixed comment markers', () => {
+    const sql = format(
+      'SELECT * FROM `db--1`.`table/*test*/` WHERE `col--id` = ?',
+      [42]
+    );
+    assert.equal(
+      sql,
+      'SELECT * FROM `db--1`.`table/*test*/` WHERE `col--id` = 42'
+    );
+  });
+
+  test('UPDATE with backtick identifiers containing dashes', () => {
+    const sql = format('UPDATE `table--name` SET `col--1` = ? WHERE id = ?', [
+      'value',
+      1,
+    ]);
+    assert.equal(
+      sql,
+      "UPDATE `table--name` SET `col--1` = 'value' WHERE id = 1"
+    );
+  });
+
+  test('SELECT with ?? and backtick-quoted values with dashes', () => {
+    const sql = format('SELECT ?? FROM `users--table` WHERE id = ?', [
+      ['col--1', 'col--2'],
+      1,
+    ]);
+    assert.equal(
+      sql,
+      'SELECT `col--1`, `col--2` FROM `users--table` WHERE id = 1'
+    );
+  });
+});
