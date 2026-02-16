@@ -607,4 +607,12 @@ describe('Critical: Backtick-quoted identifiers with comment-like sequences', ()
       'SELECT `col--1`, `col--2` FROM `users--table` WHERE id = 1'
     );
   });
+
+  test('SELECT with ?? without any backticks in query', () => {
+    const sql = format('SELECT ?? FROM users WHERE id = ?', [
+      ['id', 'name'],
+      1,
+    ]);
+    assert.equal(sql, 'SELECT `id`, `name` FROM users WHERE id = 1');
+  });
 });
