@@ -29,6 +29,7 @@ const CHARS_ESCAPE_MAP: Record<string, string> = {
 
 const charCode = {
   singleQuote: 39,
+  backtick: 96,
   backslash: 92,
   dash: 45,
   slash: 47,
@@ -110,6 +111,23 @@ const skipSqlContext = (sql: string, position: number): number => {
     return sql.length;
   }
 
+  if (currentChar === charCode.backtick) {
+    const length = sql.length;
+
+    for (let cursor = position + 1; cursor < length; cursor++) {
+      if (sql.charCodeAt(cursor) !== charCode.backtick) continue;
+
+      if (sql.charCodeAt(cursor + 1) === charCode.backtick) {
+        cursor++;
+        continue;
+      }
+
+      return cursor + 1;
+    }
+
+    return length;
+  }
+
   if (currentChar === charCode.dash && nextChar === charCode.dash) {
     const lineBreak = sql.indexOf('\n', position + 2);
     return lineBreak === -1 ? sql.length : lineBreak + 1;
@@ -132,6 +150,7 @@ const findNextPlaceholder = (sql: string, start: number): number => {
 
     if (
       code === charCode.singleQuote ||
+      code === charCode.backtick ||
       code === charCode.dash ||
       code === charCode.slash
     ) {
@@ -153,6 +172,7 @@ const findSetKeyword = (sql: string, startFrom = 0): number => {
 
     if (
       code === charCode.singleQuote ||
+      code === charCode.backtick ||
       code === charCode.dash ||
       code === charCode.slash
     ) {
