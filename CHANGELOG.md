@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.3](https://github.com/mysqljs/sql-escaper/compare/v1.3.2...v1.3.3) (2026-02-16)
+
+
+### Bug Fixes
+
+* distinguish delimiters in queries from SQL comments ([#22](https://github.com/mysqljs/sql-escaper/issues/22)) ([5a11707](https://github.com/mysqljs/sql-escaper/commit/5a11707d212f05b69e707e8b9aa45e7bff00f403))
+
 ## [1.3.2](https://github.com/mysqljs/sql-escaper/compare/v1.3.1...v1.3.2) (2026-02-12)
 
 
