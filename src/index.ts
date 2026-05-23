@@ -356,7 +356,7 @@ export const objectToValues = (
   object: Record<string, SqlValue> | Map<string, SqlValue>,
   timezone?: Timezone
 ): string => {
-  const entries: Array<[string, SqlValue]> = object instanceof Map
+  const entries: [string, SqlValue][] = object instanceof Map
     ? Array.from(object.entries(), ([k, v]) => [String(k), v])
     : Object.entries(object);
 
