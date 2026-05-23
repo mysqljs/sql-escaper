@@ -42,7 +42,11 @@ const charCode = {
 } as const;
 
 const isRecord = (value: unknown): value is Record<string, SqlValue> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
+  typeof value === 'object' &&
+  value !== null &&
+  !Array.isArray(value) &&
+  !(value instanceof Set) &&
+  !(value instanceof Map);
 
 const isWordChar = (code: number): boolean =>
   (code >= 65 && code <= 90) ||
@@ -349,19 +353,21 @@ export const escapeId = (
 };
 
 export const objectToValues = (
-  object: Record<string, SqlValue>,
+  object: Record<string, SqlValue> | Map<string, SqlValue>,
   timezone?: Timezone
 ): string => {
-  const keys = Object.keys(object);
-  const keysLength = keys.length;
+  const entries: Array<[string, SqlValue]> = object instanceof Map
+    ? Array.from(object.entries(), ([k, v]) => [String(k), v])
+    : Object.entries(object);
+
+  const keysLength = entries.length;
 
   if (keysLength === 0) return '';
 
   let sql = '';
 
   for (let i = 0; i < keysLength; i++) {
-    const key = keys[i]!;
-    const value = object[key];
+    const [key, value] = entries[i]!;
 
     if (typeof value === 'function') continue;
 
@@ -384,8 +390,10 @@ export const arrayToList = (array: SqlValue[], timezone?: Timezone): string => {
   for (let i = 0; i < length; i++) {
     const value = array[i];
 
-    if (Array.isArray(value)) parts[i] = `(${arrayToList(value, timezone)})`;
-    else parts[i] = escape(value, true, timezone);
+    if (Array.isArray(value) || value instanceof Set) {
+      const sub = Array.isArray(value) ? value : Array.from(value as Set<SqlValue>);
+      parts[i] = `(${arrayToList(sub, timezone)})`;
+    } else parts[i] = escape(value, true, timezone);
   }
 
   return parts.join(', ');
@@ -410,13 +418,15 @@ export const escape = (
     case 'object': {
       if (isDate(value)) return dateToString(value, timezone || 'local');
       if (Array.isArray(value)) return arrayToList(value, timezone);
+      if (value instanceof Set)
+        return arrayToList(Array.from(value as Set<SqlValue>), timezone);
       if (Buffer.isBuffer(value)) return bufferToString(value);
       if (value instanceof Uint8Array)
         return bufferToString(Buffer.from(value));
       if (hasSqlString(value)) return String(value.toSqlString());
       if (!(stringifyObjects === undefined || stringifyObjects === null))
         return escapeString(String(value));
-      if (isRecord(value)) return objectToValues(value, timezone);
+      if (isRecord(value) || value instanceof Map) return objectToValues(value, timezone);
 
       return escapeString(String(value));
     }
@@ -480,7 +490,7 @@ export const format = (
         !Buffer.isBuffer(currentValue) &&
         !(currentValue instanceof Uint8Array) &&
         !isDate(currentValue) &&
-        isRecord(currentValue)
+        (isRecord(currentValue) || currentValue instanceof Map)
       ) {
         escapedValue = objectToValues(currentValue, timezone);
         setIndex = findSetKeyword(sql, placeholderEnd);

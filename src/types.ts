@@ -13,6 +13,8 @@ export type SqlValue =
   | Raw
   | Record<string, unknown>
   | SqlValue[]
+  | Set<SqlValue>
+  | Map<string, SqlValue>
   | null
   | undefined;
 

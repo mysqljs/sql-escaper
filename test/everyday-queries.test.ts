@@ -616,3 +616,59 @@ describe('Critical: Backtick-quoted identifiers with comment-like sequences', ()
     assert.equal(sql, 'SELECT `id`, `name` FROM users WHERE id = 1');
   });
 });
+
+describe('Set (treated like Array) and Map (treated like Object) via ?', () => {
+  test('WHERE id IN (?) with Set of numbers', () => {
+    const sql = format('SELECT * FROM users WHERE id IN (?)', [
+      new Set([1, 2, 3]),
+    ]);
+    assert.equal(sql, 'SELECT * FROM users WHERE id IN (1, 2, 3)');
+  });
+
+  test('WHERE status IN (?) with Set of strings', () => {
+    const sql = format('SELECT * FROM users WHERE status IN (?)', [
+      new Set(['active', 'pending']),
+    ]);
+    assert.equal(
+      sql,
+      "SELECT * FROM users WHERE status IN ('active', 'pending')"
+    );
+  });
+
+  test('SELECT ? with Set expands like array', () => {
+    const sql = format('SELECT ?', [new Set([42])]);
+    assert.equal(sql, 'SELECT 42');
+  });
+
+  test('UPDATE t SET ? with Map expands like object', () => {
+    const sql = format('UPDATE t SET ?', [
+      new Map<string, number|string>([
+        ['name', 'foo'],
+        ['count', 7],
+      ]),
+    ]);
+    assert.equal(sql, "UPDATE t SET `name` = 'foo', `count` = 7");
+  });
+
+  test('Map in regular ? position stringifies like object', () => {
+    const sql = format('SELECT * FROM t WHERE data = ?', [
+      new Map([['x', 1]]),
+    ]);
+    assert.equal(sql, "SELECT * FROM t WHERE data = '[object Map]'");
+  });
+
+  test('Set in SET position treated like array (lists)', () => {
+    const sql = format('UPDATE t SET ?', [new Set(['a', 'b'])]);
+    assert.equal(sql, "UPDATE t SET 'a', 'b'");
+  });
+
+  test('empty Set in IN (?)', () => {
+    const sql = format('SELECT * FROM t WHERE id IN (?)', [new Set()]);
+    assert.equal(sql, 'SELECT * FROM t WHERE id IN ()');
+  });
+
+  test('empty Map in SET ?', () => {
+    const sql = format('UPDATE t SET ?', [new Map()]);
+    assert.equal(sql, 'UPDATE t SET ');
+  });
+});
