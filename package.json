@@ -45,7 +45,7 @@
     "esbuild": "^0.27.2",
     "monocart-coverage-reports": "^2.12.9",
     "packages-update": "^2.0.0",
-    "poku": "^3.0.3-canary.13a996a9",
+    "poku": "^4.3.2",
     "prettier": "^3.8.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
