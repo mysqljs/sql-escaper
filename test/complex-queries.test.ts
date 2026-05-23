@@ -231,3 +231,16 @@ describe('UPDATE with SET and surrounding comments', () => {
     );
   });
 });
+
+describe('Multi-statement queries with SET ?', () => {
+  it('should expand object for SET ? in second statement after another SET', () => {
+    const formatted = format(
+      `
+SET @foo = 1; INSERT INTO bar SET ?;
+`,
+      [{ foo: 'bar' }]
+    );
+
+    assert.equal(formatted.includes('[object'), false);
+  });
+});
