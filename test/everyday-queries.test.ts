@@ -642,7 +642,7 @@ describe('Set (treated like Array) and Map (treated like Object) via ?', () => {
 
   test('UPDATE t SET ? with Map expands like object', () => {
     const sql = format('UPDATE t SET ?', [
-      new Map<string, number|string>([
+      new Map<string, number | string>([
         ['name', 'foo'],
         ['count', 7],
       ]),
@@ -651,9 +651,7 @@ describe('Set (treated like Array) and Map (treated like Object) via ?', () => {
   });
 
   test('Map in regular ? position stringifies like object', () => {
-    const sql = format('SELECT * FROM t WHERE data = ?', [
-      new Map([['x', 1]]),
-    ]);
+    const sql = format('SELECT * FROM t WHERE data = ?', [new Map([['x', 1]])]);
     assert.equal(sql, "SELECT * FROM t WHERE data = '[object Map]'");
   });
 

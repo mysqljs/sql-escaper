@@ -356,9 +356,10 @@ export const objectToValues = (
   object: Record<string, SqlValue> | Map<string, SqlValue>,
   timezone?: Timezone
 ): string => {
-  const entries: [string, SqlValue][] = object instanceof Map
-    ? Array.from(object.entries(), ([k, v]) => [String(k), v])
-    : Object.entries(object);
+  const entries: [string, SqlValue][] =
+    object instanceof Map
+      ? Array.from(object.entries(), ([k, v]) => [String(k), v])
+      : Object.entries(object);
 
   const keysLength = entries.length;
 
@@ -391,7 +392,9 @@ export const arrayToList = (array: SqlValue[], timezone?: Timezone): string => {
     const value = array[i];
 
     if (Array.isArray(value) || value instanceof Set) {
-      const sub = Array.isArray(value) ? value : Array.from(value as Set<SqlValue>);
+      const sub = Array.isArray(value)
+        ? value
+        : Array.from(value as Set<SqlValue>);
       parts[i] = `(${arrayToList(sub, timezone)})`;
     } else parts[i] = escape(value, true, timezone);
   }
@@ -426,7 +429,8 @@ export const escape = (
       if (hasSqlString(value)) return String(value.toSqlString());
       if (!(stringifyObjects === undefined || stringifyObjects === null))
         return escapeString(String(value));
-      if (isRecord(value) || value instanceof Map) return objectToValues(value, timezone);
+      if (isRecord(value) || value instanceof Map)
+        return objectToValues(value, timezone);
 
       return escapeString(String(value));
     }
