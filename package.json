@@ -42,7 +42,7 @@
     "@biomejs/biome": "^1.9.4",
     "@ianvs/prettier-plugin-sort-imports": "^4.7.0",
     "@types/node": "^25.2.0",
-    "esbuild": "^0.27.2",
+    "esbuild": "^0.28.1",
     "monocart-coverage-reports": "^2.12.9",
     "packages-update": "^2.0.0",
     "poku": "^4.3.2",
