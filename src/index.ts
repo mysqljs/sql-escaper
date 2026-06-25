@@ -131,9 +131,6 @@ const skipSqlContext = (sql: string, position: number): number => {
   }
 
   if (currentChar === charCode.dash && nextChar === charCode.dash) {
-    // MySQL starts a `--` comment only when the dashes are followed by a
-    // whitespace/control character (or end of input); `1--2` is an operator
-    // sequence, not a comment, so it must not swallow following placeholders.
     const afterDash = sql.charCodeAt(position + 2);
 
     if (Number.isNaN(afterDash) || afterDash <= charCode.space) {
@@ -145,9 +142,6 @@ const skipSqlContext = (sql: string, position: number): number => {
   }
 
   if (currentChar === charCode.slash && nextChar === charCode.asterisk) {
-    // `/*! ... */` (executable comments) and `/*+ ... */` (optimizer hints)
-    // are evaluated by MySQL, so a `?` inside them is a live placeholder and
-    // must not be skipped like a regular `/* ... */` comment.
     const markerChar = sql.charCodeAt(position + 2);
 
     if (markerChar === charCode.exclamation || markerChar === charCode.plus)
