@@ -34,6 +34,8 @@ const charCode = {
   dash: 45,
   slash: 47,
   asterisk: 42,
+  exclamation: 33,
+  plus: 43,
   questionMark: 63,
   newline: 10,
   space: 32,
@@ -129,11 +131,28 @@ const skipSqlContext = (sql: string, position: number): number => {
   }
 
   if (currentChar === charCode.dash && nextChar === charCode.dash) {
-    const lineBreak = sql.indexOf('\n', position + 2);
-    return lineBreak === -1 ? sql.length : lineBreak + 1;
+    // MySQL starts a `--` comment only when the dashes are followed by a
+    // whitespace/control character (or end of input); `1--2` is an operator
+    // sequence, not a comment, so it must not swallow following placeholders.
+    const afterDash = sql.charCodeAt(position + 2);
+
+    if (Number.isNaN(afterDash) || afterDash <= charCode.space) {
+      const lineBreak = sql.indexOf('\n', position + 2);
+      return lineBreak === -1 ? sql.length : lineBreak + 1;
+    }
+
+    return -1;
   }
 
   if (currentChar === charCode.slash && nextChar === charCode.asterisk) {
+    // `/*! ... */` (executable comments) and `/*+ ... */` (optimizer hints)
+    // are evaluated by MySQL, so a `?` inside them is a live placeholder and
+    // must not be skipped like a regular `/* ... */` comment.
+    const markerChar = sql.charCodeAt(position + 2);
+
+    if (markerChar === charCode.exclamation || markerChar === charCode.plus)
+      return -1;
+
     const commentEnd = sql.indexOf('*/', position + 2);
     return commentEnd === -1 ? sql.length : commentEnd + 2;
   }

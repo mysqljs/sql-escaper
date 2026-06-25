@@ -338,6 +338,25 @@ describe('Query comments for debugging', () => {
       "SELECT * FROM users -- get all users\nWHERE status = 'active'"
     );
   });
+
+  test('double dash without trailing whitespace is not a comment', () => {
+    // MySQL only treats `--` as a comment when followed by whitespace/control;
+    // `1--2` is an operator sequence, so the placeholder must be substituted.
+    const sql = format('SELECT 1--2, ?', ['VAL']);
+    assert.equal(sql, "SELECT 1--2, 'VAL'");
+  });
+
+  test('executable comment placeholder is substituted, not skipped', () => {
+    // `/*! ... */` is run by MySQL, so a `?` inside it is a live placeholder
+    // and the following placeholder must not shift into its slot.
+    const sql = format('SELECT /*!40101 ? */ , ?', ['A', 'B']);
+    assert.equal(sql, "SELECT /*!40101 'A' */ , 'B'");
+  });
+
+  test('optimizer hint placeholder is substituted, not skipped', () => {
+    const sql = format('SELECT /*+ MAX_EXECUTION_TIME(?) */ id FROM t', [1000]);
+    assert.equal(sql, 'SELECT /*+ MAX_EXECUTION_TIME(1000) */ id FROM t');
+  });
 });
 
 describe('Real edge cases', () => {
