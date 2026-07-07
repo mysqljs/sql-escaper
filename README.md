@@ -417,15 +417,10 @@ Each benchmark formats `10,000` queries using `format` with `100` values, compar
 > Based on the original [**sqlstring** documentation](https://github.com/mysqljs/sqlstring#readme).
 
 - The escaping methods in this library only work when the [`NO_BACKSLASH_ESCAPES`](https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_no_backslash_escapes) SQL mode is disabled (which is the default state for MySQL servers).
-
 - This library performs **client-side escaping** to generate SQL strings. The syntax for `format` may look similar to a prepared statement, but it is not — the escaping rules from this module are used to produce the resulting SQL string.
-
 - When using `format`, **all** `?` placeholders are replaced, including those contained in comments and strings.
-
 - When structured user input is provided as the value to escape, care should be taken to validate the shape of the input, as the resulting escaped string may contain more than a single value.
-
 - `NaN` and `Infinity` are left as-is. MySQL does not support these values, and trying to insert them will trigger MySQL errors.
-
 - The string provided to `raw()` will **skip all escaping**, so be careful when passing in unvalidated input.
 
 ---
