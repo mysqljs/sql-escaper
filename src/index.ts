@@ -468,6 +468,7 @@ export const format = (
   const length = valuesArray.length;
 
   let setIndex = -2; // -2 = not yet computed, -1 = no SET found
+  let nextSetIndex = -1; // -1 = no SET after setIndex
   let result = '';
   let chunkIndex = 0;
   let valuesIndex = 0;
@@ -495,23 +496,43 @@ export const format = (
       currentValue !== null &&
       !stringifyObjects
     ) {
-      // Lazy: compute SET position only when we first encounter an object
-      if (setIndex === -2) setIndex = findSetKeyword(sql);
+      // SET/KEY UPDATE ends in a letter, so a non-letter before ? can't be one
+      let previous = placeholderPosition - 1;
+      while (previous >= chunkIndex && isWhitespace(sql.charCodeAt(previous)))
+        previous--;
 
-      if (
-        setIndex !== -1 &&
-        setIndex <= placeholderPosition &&
-        hasOnlyWhitespaceBetween(sql, setIndex, placeholderPosition) &&
-        !hasSqlString(currentValue) &&
-        !Array.isArray(currentValue) &&
-        !Buffer.isBuffer(currentValue) &&
-        !(currentValue instanceof Uint8Array) &&
-        !isDate(currentValue) &&
-        (isRecord(currentValue) || currentValue instanceof Map)
-      ) {
-        escapedValue = objectToValues(currentValue, timezone);
-        setIndex = findSetKeyword(sql, placeholderEnd);
-      } else escapedValue = escape(currentValue, true, timezone);
+      const previousChar =
+        previous >= chunkIndex ? toLower(sql.charCodeAt(previous)) : 0;
+
+      if (previousChar < 97 || previousChar > 122)
+        escapedValue = escape(currentValue, true, timezone);
+      else {
+        // Lazy: resolve the first SET and its successor once
+        if (setIndex === -2) {
+          setIndex = findSetKeyword(sql);
+          nextSetIndex = setIndex === -1 ? -1 : findSetKeyword(sql, setIndex);
+        }
+
+        // Nearest: advance to the SET closest before this placeholder
+        while (nextSetIndex !== -1 && nextSetIndex <= placeholderPosition) {
+          setIndex = nextSetIndex;
+          nextSetIndex = findSetKeyword(sql, nextSetIndex);
+        }
+
+        if (
+          setIndex !== -1 &&
+          setIndex <= placeholderPosition &&
+          hasOnlyWhitespaceBetween(sql, setIndex, placeholderPosition) &&
+          !hasSqlString(currentValue) &&
+          !Array.isArray(currentValue) &&
+          !Buffer.isBuffer(currentValue) &&
+          !(currentValue instanceof Uint8Array) &&
+          !isDate(currentValue) &&
+          (isRecord(currentValue) || currentValue instanceof Map)
+        )
+          escapedValue = objectToValues(currentValue, timezone);
+        else escapedValue = escape(currentValue, true, timezone);
+      }
     } else escapedValue = escape(currentValue, stringifyObjects, timezone);
 
     result += sql.slice(chunkIndex, placeholderPosition);

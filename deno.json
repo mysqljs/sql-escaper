@@ -1,0 +1,5 @@
+{
+  "tasks": {
+    "test:deno": "deno run -A npm:poku"
+  }
+}
