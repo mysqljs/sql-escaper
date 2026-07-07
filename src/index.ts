@@ -8,6 +8,23 @@ import { Buffer } from 'node:buffer';
 
 export type { Raw, SqlValue, Timezone } from './types.js';
 
+const SET_CLAUSE_TERMINATORS = [
+  'where',
+  'order',
+  'group',
+  'having',
+  'limit',
+  'union',
+  'returning',
+  'into',
+  'for',
+  'lock',
+  'offset',
+  'window',
+  'procedure',
+  'on',
+] as const;
+
 const regex = {
   backtick: /`/g,
   dot: /\./g,
@@ -37,6 +54,10 @@ const charCode = {
   exclamation: 33,
   plus: 43,
   questionMark: 63,
+  comma: 44,
+  openParen: 40,
+  closeParen: 41,
+  semicolon: 59,
   newline: 10,
   space: 32,
   tab: 9,
@@ -61,28 +82,6 @@ const isWhitespace = (code: number): boolean =>
   code === charCode.tab ||
   code === charCode.newline ||
   code === charCode.carriageReturn;
-
-const hasOnlyWhitespaceBetween = (
-  sql: string,
-  start: number,
-  end: number
-): boolean => {
-  if (start >= end) return true;
-
-  for (let i = start; i < end; i++) {
-    const code = sql.charCodeAt(i);
-
-    if (
-      code !== charCode.space &&
-      code !== charCode.tab &&
-      code !== charCode.newline &&
-      code !== charCode.carriageReturn
-    )
-      return false;
-  }
-
-  return true;
-};
 
 const toLower = (code: number): number => code | 32;
 
@@ -178,6 +177,80 @@ const findNextPlaceholder = (sql: string, start: number): number => {
   }
 
   return -1;
+};
+
+const isInSetAssignmentList = (
+  sql: string,
+  setEnd: number,
+  placeholderPosition: number
+): boolean => {
+  const length = sql.length;
+  let depth = 0;
+  let sawContent = false;
+  let lastWasComma = false;
+
+  for (let i = setEnd; i < placeholderPosition; ) {
+    const code = sql.charCodeAt(i);
+
+    if (
+      code === charCode.singleQuote ||
+      code === charCode.backtick ||
+      code === charCode.dash ||
+      code === charCode.slash
+    ) {
+      const contextEnd = skipSqlContext(sql, i);
+
+      if (contextEnd !== -1) {
+        i = contextEnd;
+        sawContent = true;
+        lastWasComma = false;
+        continue;
+      }
+    }
+
+    if (isWhitespace(code)) {
+      i++;
+      continue;
+    }
+
+    if (code === charCode.openParen) {
+      depth++;
+      sawContent = true;
+      lastWasComma = false;
+      i++;
+      continue;
+    }
+
+    if (code === charCode.closeParen) {
+      if (--depth < 0) return false;
+      sawContent = true;
+      lastWasComma = false;
+      i++;
+      continue;
+    }
+
+    if (depth === 0) {
+      if (code === charCode.semicolon) return false;
+
+      if (code === charCode.comma) {
+        lastWasComma = true;
+        sawContent = true;
+        i++;
+        continue;
+      }
+
+      if (isWordChar(code) && !(code >= 48 && code <= 57))
+        for (let t = 0; t < SET_CLAUSE_TERMINATORS.length; t++)
+          if (matchesWord(sql, i, SET_CLAUSE_TERMINATORS[t]!, length))
+            return false;
+    }
+
+    sawContent = true;
+    lastWasComma = false;
+    i++;
+  }
+
+  return depth === 0 && (!sawContent || lastWasComma);
 };
 
 const findSetKeyword = (sql: string, startFrom = 0): number => {
@@ -496,43 +569,53 @@ export const format = (
       currentValue !== null &&
       !stringifyObjects
     ) {
-      // SET/KEY UPDATE ends in a letter, so a non-letter before ? can't be one
-      let previous = placeholderPosition - 1;
-      while (previous >= chunkIndex && isWhitespace(sql.charCodeAt(previous)))
-        previous--;
+      const expandable =
+        !(
+          currentValue instanceof Date ||
+          isDate(currentValue) ||
+          Array.isArray(currentValue) ||
+          Buffer.isBuffer(currentValue) ||
+          currentValue instanceof Uint8Array ||
+          hasSqlString(currentValue)
+        ) &&
+        (isRecord(currentValue) || currentValue instanceof Map);
 
-      const previousChar =
-        previous >= chunkIndex ? toLower(sql.charCodeAt(previous)) : 0;
+      if (expandable) {
+        // A SET assignment follows the keyword (a letter) or a comma continuing the list
+        let previous = placeholderPosition - 1;
+        while (previous >= chunkIndex && isWhitespace(sql.charCodeAt(previous)))
+          previous--;
 
-      if (previousChar < 97 || previousChar > 122)
-        escapedValue = escape(currentValue, true, timezone);
-      else {
-        // Lazy: resolve the first SET and its successor once
-        if (setIndex === -2) {
-          setIndex = findSetKeyword(sql);
-          nextSetIndex = setIndex === -1 ? -1 : findSetKeyword(sql, setIndex);
-        }
-
-        // Nearest: advance to the SET closest before this placeholder
-        while (nextSetIndex !== -1 && nextSetIndex <= placeholderPosition) {
-          setIndex = nextSetIndex;
-          nextSetIndex = findSetKeyword(sql, nextSetIndex);
-        }
+        const previousChar =
+          previous >= chunkIndex ? toLower(sql.charCodeAt(previous)) : 0;
 
         if (
-          setIndex !== -1 &&
-          setIndex <= placeholderPosition &&
-          hasOnlyWhitespaceBetween(sql, setIndex, placeholderPosition) &&
-          !hasSqlString(currentValue) &&
-          !Array.isArray(currentValue) &&
-          !Buffer.isBuffer(currentValue) &&
-          !(currentValue instanceof Uint8Array) &&
-          !isDate(currentValue) &&
-          (isRecord(currentValue) || currentValue instanceof Map)
+          (previousChar < 97 || previousChar > 122) &&
+          previousChar !== charCode.comma
         )
-          escapedValue = objectToValues(currentValue, timezone);
-        else escapedValue = escape(currentValue, true, timezone);
-      }
+          escapedValue = escape(currentValue, true, timezone);
+        else {
+          // Lazy: resolve the first SET and its successor once
+          if (setIndex === -2) {
+            setIndex = findSetKeyword(sql);
+            nextSetIndex = setIndex === -1 ? -1 : findSetKeyword(sql, setIndex);
+          }
+
+          // Nearest: advance to the SET closest before this placeholder
+          while (nextSetIndex !== -1 && nextSetIndex <= placeholderPosition) {
+            setIndex = nextSetIndex;
+            nextSetIndex = findSetKeyword(sql, nextSetIndex);
+          }
+
+          if (
+            setIndex !== -1 &&
+            setIndex <= placeholderPosition &&
+            isInSetAssignmentList(sql, setIndex, placeholderPosition)
+          )
+            escapedValue = objectToValues(currentValue, timezone);
+          else escapedValue = escape(currentValue, true, timezone);
+        }
+      } else escapedValue = escape(currentValue, true, timezone);
     } else escapedValue = escape(currentValue, stringifyObjects, timezone);
 
     result += sql.slice(chunkIndex, placeholderPosition);
