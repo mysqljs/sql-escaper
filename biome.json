@@ -9,7 +9,8 @@
       "coverage-reports",
       "playground",
       "t.ts",
-      "mcr.config.ts"
+      "mcr.config.ts",
+      ".bluespec"
     ]
   },
   "linter": {
