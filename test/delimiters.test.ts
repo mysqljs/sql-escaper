@@ -338,6 +338,21 @@ describe('Query comments for debugging', () => {
       "SELECT * FROM users -- get all users\nWHERE status = 'active'"
     );
   });
+
+  test('double dash without trailing whitespace is not a comment', () => {
+    const sql = format('SELECT 1--2, ?', ['VAL']);
+    assert.equal(sql, "SELECT 1--2, 'VAL'");
+  });
+
+  test('executable comment placeholder is substituted, not skipped', () => {
+    const sql = format('SELECT /*!40101 ? */ , ?', ['A', 'B']);
+    assert.equal(sql, "SELECT /*!40101 'A' */ , 'B'");
+  });
+
+  test('optimizer hint placeholder is substituted, not skipped', () => {
+    const sql = format('SELECT /*+ MAX_EXECUTION_TIME(?) */ id FROM t', [1000]);
+    assert.equal(sql, 'SELECT /*+ MAX_EXECUTION_TIME(1000) */ id FROM t');
+  });
 });
 
 describe('Real edge cases', () => {
