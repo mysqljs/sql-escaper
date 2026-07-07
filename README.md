@@ -222,6 +222,15 @@ escape([
 // => '(1, 2, 3), (4, 5, 6)'
 ```
 
+#### Sets
+
+Sets are treated like arrays, turning into comma-separated lists with natural deduplication:
+
+```js
+escape(new Set([1, 2, 3]));
+// => '1, 2, 3'
+```
+
 ---
 
 ### escapeId
@@ -309,6 +318,27 @@ When `stringifyObjects` is truthy, objects are always stringified:
 ```js
 format('UPDATE users SET ?', [{ name: 'foo' }], true);
 // => "UPDATE users SET '[object Object]'"
+```
+
+#### Maps in SET clauses
+
+Maps are treated like plain objects, preserving insertion order. In `SET` or `ON DUPLICATE KEY UPDATE` contexts, they are expanded into `key = value` pairs:
+
+```js
+format('UPDATE users SET ?', [
+  new Map([
+    ['name', 'foo'],
+    ['email', 'bar@test.com'],
+  ]),
+]);
+// => "UPDATE users SET `name` = 'foo', `email` = 'bar@test.com'"
+```
+
+Outside of `SET` or `ON DUPLICATE KEY UPDATE`, a `Map` is stringified as `'[object Map]'`, the same security measure applied to objects:
+
+```js
+format('SELECT * FROM users WHERE data = ?', [new Map([['id', 1]])]);
+// => "SELECT * FROM users WHERE data = '[object Map]'"
 ```
 
 ---
