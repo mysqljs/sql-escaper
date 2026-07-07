@@ -144,14 +144,14 @@ escape("Hello 'World", true); // "'Hello \\'World'"
 Dates are converted to `YYYY-MM-DD HH:mm:ss.sss` format:
 
 ```js
-escape(new Date(2012, 4, 7, 11, 42, 3, 2), false);
+escape(new Date(2012, 4, 7, 11, 42, 3, 2), true);
 // => "'2012-05-07 11:42:03.002'"
 ```
 
 Invalid dates return `NULL`:
 
 ```js
-escape(new Date(NaN), false); // 'NULL'
+escape(new Date(NaN), true); // 'NULL'
 ```
 
 You can specify a timezone:
@@ -243,7 +243,7 @@ escape({ a: 'b', c: () => {} });
 Arrays are turned into comma-separated lists:
 
 ```js
-escape([1, 2, 'c'], false);
+escape([1, 2, 'c'], true);
 // => "1, 2, 'c'"
 ```
 
@@ -255,7 +255,7 @@ escape(
     [1, 2, 3],
     [4, 5, 6],
   ],
-  false
+  true
 );
 // => '(1, 2, 3), (4, 5, 6)'
 ```
@@ -265,7 +265,7 @@ escape(
 Sets are treated like arrays, turning into comma-separated lists with natural deduplication:
 
 ```js
-escape(new Set([1, 2, 3]), false);
+escape(new Set([1, 2, 3]), true);
 // => '1, 2, 3'
 ```
 
