@@ -385,12 +385,12 @@ Each benchmark formats `10,000` queries using `format` with `100` values, compar
 | ---------------------------------------- | --------: | ----------: | ---------------: |
 | Select 100 values                        |  249.0 ms |    177.8 ms | **1.40x faster** |
 | Insert 100 values                        |  247.7 ms |    185.3 ms | **1.34x faster** |
+| Insert 100 strings requiring escape      |  436.9 ms |    257.5 ms | **1.70x faster** |
+| Insert 100 dates                         |  611.9 ms |    415.1 ms | **1.47x faster** |
 | SET with 100 values                      |  258.8 ms |    207.4 ms | **1.25x faster** |
 | SET with 100 objects                     |  344.8 ms |    241.0 ms | **1.43x faster** |
 | ON DUPLICATE KEY UPDATE with 100 values  |  462.0 ms |    362.7 ms | **1.27x faster** |
 | ON DUPLICATE KEY UPDATE with 100 objects |  559.4 ms |    437.8 ms | **1.28x faster** |
-| Insert 100 strings requiring escape      |  436.9 ms |    257.5 ms | **1.70x faster** |
-| Insert 100 dates                         |  611.9 ms |    415.1 ms | **1.47x faster** |
 
 - See detailed results and how the benchmarks are run in the [**benchmark**](https://github.com/mysqljs/sql-escaper/tree/main/benchmark) directory.
 

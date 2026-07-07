@@ -53,4 +53,9 @@ export const cases = [
       (_, i) => new Date(2025, i % 12, (i % 27) + 1, i % 24, i % 60, i % 60)
     ),
   },
+  {
+    label: 'Multi-statement SET with 100 objects',
+    sql: 'SET @locale = ?; UPDATE users SET ? WHERE id = ?',
+    values: ['en', mixedObject(100), 1],
+  },
 ];
