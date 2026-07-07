@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.4.0](https://github.com/mysqljs/sql-escaper/compare/v1.3.3...v1.4.0) (2026-07-07)
+
+
+### Features
+
+* add Set and Map support to `?` placeholder expansion ([#27](https://github.com/mysqljs/sql-escaper/issues/27)) ([a1dc888](https://github.com/mysqljs/sql-escaper/commit/a1dc8887d681cf54996cf93bf67e3a6091d591b8))
+
+
+### Bug Fixes
+
+* expand `SET ?` in multi-statement queries ([#34](https://github.com/mysqljs/sql-escaper/issues/34)) ([4638497](https://github.com/mysqljs/sql-escaper/commit/463849732da739decd1e05090592b42bcf0f9643))
+* extend SQL parsing to expand objects across `SET` assignment lists ([#37](https://github.com/mysqljs/sql-escaper/issues/37)) ([adaf338](https://github.com/mysqljs/sql-escaper/commit/adaf3381cd053fe5b195930097bc5feefd2b5a0b))
+* substitute placeholders near non-comment `--` and executable comments ([#31](https://github.com/mysqljs/sql-escaper/issues/31)) ([bcc11a2](https://github.com/mysqljs/sql-escaper/commit/bcc11a226861e5a1b1b5a930d6187c62c3cf27a4))
+
+
+### Performance Improvements
+
+* scan `SET` clauses per-token instead of per-char ([#38](https://github.com/mysqljs/sql-escaper/issues/38)) ([f953b9c](https://github.com/mysqljs/sql-escaper/commit/f953b9c206cff4e34312fd38b12936f6c1178315))
+
 ## [1.3.3](https://github.com/mysqljs/sql-escaper/compare/v1.3.2...v1.3.3) (2026-02-16)
 
 
