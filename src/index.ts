@@ -56,13 +56,13 @@ const charCode = {
   carriageReturn: 13,
 } as const;
 
-// Pre allocate a lookup table for characters that can trigger a context change in SQL parsing
+// Chars that open a string, identifier, or comment
 CONTEXT_TRIGGER[charCode.singleQuote] = 1;
 CONTEXT_TRIGGER[charCode.backtick] = 1;
 CONTEXT_TRIGGER[charCode.dash] = 1;
 CONTEXT_TRIGGER[charCode.slash] = 1;
 
-// Pre allocate a lookup table for the first character of each SET clause terminator
+// Bucket terminators by their first character
 for (const word of SET_CLAUSE_TERMINATORS) {
   const first = word.charCodeAt(0);
   const bucket = SET_CLAUSE_TERMINATORS_BY_FIRST[first];
