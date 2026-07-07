@@ -88,7 +88,7 @@ For _up-to-date_ documentation, always follow the [**README.md**](https://github
 ```js
 import { escape, escapeId, format, raw } from 'sql-escaper';
 
-escape("Hello 'World'");
+escape("Hello 'World'", true);
 // => "'Hello \\'World\\''"
 
 escapeId('table.column');
@@ -100,7 +100,7 @@ format('SELECT * FROM ?? WHERE id = ?', ['users', 42]);
 format('INSERT INTO users SET ?', [{ name: 'foo', email: 'bar@test.com' }]);
 // => "INSERT INTO users SET `name` = 'foo', `email` = 'bar@test.com'"
 
-escape(raw('NOW()'));
+escape(raw('NOW()'), true);
 // => 'NOW()'
 ```
 
@@ -390,9 +390,13 @@ raw(sql: string): Raw
 ```
 
 ```js
-escape(raw('NOW()'));
+escape(raw('NOW()'), true);
 // => 'NOW()'
+```
 
+Inside an expanded object, raw values are preserved **(discouraged)**:
+
+```js
 escape({ id: raw('LAST_INSERT_ID()') });
 // => '`id` = LAST_INSERT_ID()'
 ```
