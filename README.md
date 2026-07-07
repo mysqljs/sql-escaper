@@ -384,10 +384,10 @@ Each benchmark formats `10,000` queries using `format` with `100` mixed values (
 | Benchmark                                | sqlstring | SQL Escaper |       Difference |
 | ---------------------------------------- | --------: | ----------: | ---------------: |
 | Select 100 values                        |  248.8 ms |    178.7 ms | **1.39x faster** |
-| Insert 100 values                        |  247.5 ms |    196.2 ms | **1.26x faster** |
 | Insert 100 values                        |  238.5 ms |    176.4 ms | **1.35x faster** |
+| SET with 100 values                      |  257.5 ms |    205.2 ms | **1.26x faster** |
 | SET with 100 objects                     |  348.3 ms |    250.5 ms | **1.39x faster** |
-| ON DUPLICATE KEY UPDATE with 100 values  |  466.2 ms |    394.6 ms | **1.18x faster** |
+| ON DUPLICATE KEY UPDATE with 100 values  |  435.9 ms |    344.6 ms | **1.27x faster** |
 | ON DUPLICATE KEY UPDATE with 100 objects |  558.2 ms |    433.9 ms | **1.29x faster** |
 
 - See detailed results and how the benchmarks are run in the [**benchmark**](https://github.com/mysqljs/sql-escaper/tree/main/benchmark) directory.
