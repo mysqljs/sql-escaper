@@ -8,6 +8,10 @@ import { Buffer } from 'node:buffer';
 
 export type { Raw, SqlValue, Timezone } from './types.js';
 
+const CONTEXT_TRIGGER = new Uint8Array(128);
+
+const SET_CLAUSE_TERMINATORS_BY_FIRST: Record<number, string[]> = {};
+
 const SET_CLAUSE_TERMINATORS = [
   'where',
   'order',
@@ -30,18 +34,6 @@ const regex = {
   dot: /\./g,
   timezone: /([+\-\s])(\d\d):?(\d\d)?/,
   escapeChars: /[\0\b\t\n\r\x1a"'\\]/g,
-};
-
-const CHARS_ESCAPE_MAP: Record<string, string> = {
-  '\0': '\\0',
-  '\b': '\\b',
-  '\t': '\\t',
-  '\n': '\\n',
-  '\r': '\\r',
-  '\x1a': '\\Z',
-  '"': '\\"',
-  "'": "\\'",
-  '\\': '\\\\',
 } as const;
 
 const charCode = {
@@ -63,6 +55,23 @@ const charCode = {
   tab: 9,
   carriageReturn: 13,
 } as const;
+
+// Chars that open a string, identifier, or comment
+CONTEXT_TRIGGER[charCode.singleQuote] = 1;
+CONTEXT_TRIGGER[charCode.backtick] = 1;
+CONTEXT_TRIGGER[charCode.dash] = 1;
+CONTEXT_TRIGGER[charCode.slash] = 1;
+
+// Bucket terminators by their first character
+for (const word of SET_CLAUSE_TERMINATORS) {
+  const first = word.charCodeAt(0);
+  const bucket = SET_CLAUSE_TERMINATORS_BY_FIRST[first];
+
+  if (bucket) bucket.push(word);
+  else SET_CLAUSE_TERMINATORS_BY_FIRST[first] = [word];
+}
+
+const hasOwnProperty = Object.prototype.hasOwnProperty;
 
 const isRecord = (value: unknown): value is Record<string, SqlValue> =>
   typeof value === 'object' &&
@@ -91,14 +100,16 @@ const matchesWord = (
   word: string,
   length: number
 ): boolean => {
-  for (let offset = 0; offset < word.length; offset++)
+  const wordLength = word.length;
+
+  for (let offset = 0; offset < wordLength; offset++)
     if (toLower(sql.charCodeAt(position + offset)) !== word.charCodeAt(offset))
       return false;
 
   return (
     (position === 0 || !isWordChar(sql.charCodeAt(position - 1))) &&
-    (position + word.length >= length ||
-      !isWordChar(sql.charCodeAt(position + word.length)))
+    (position + wordLength >= length ||
+      !isWordChar(sql.charCodeAt(position + wordLength)))
   );
 };
 
@@ -164,12 +175,7 @@ const findNextPlaceholder = (sql: string, start: number): number => {
     const code = sql.charCodeAt(position);
     if (code === charCode.questionMark) return position;
 
-    if (
-      code === charCode.singleQuote ||
-      code === charCode.backtick ||
-      code === charCode.dash ||
-      code === charCode.slash
-    ) {
+    if (code < 128 && CONTEXT_TRIGGER[code]) {
       const contextEnd = skipSqlContext(sql, position);
 
       if (contextEnd !== -1) position = contextEnd - 1;
@@ -192,18 +198,14 @@ const isInSetAssignmentList = (
   for (let i = setEnd; i < placeholderPosition; ) {
     const code = sql.charCodeAt(i);
 
-    if (
-      code === charCode.singleQuote ||
-      code === charCode.backtick ||
-      code === charCode.dash ||
-      code === charCode.slash
-    ) {
+    if (code < 128 && CONTEXT_TRIGGER[code]) {
       const contextEnd = skipSqlContext(sql, i);
 
       if (contextEnd !== -1) {
         i = contextEnd;
         sawContent = true;
         lastWasComma = false;
+
         continue;
       }
     }
@@ -218,14 +220,36 @@ const isInSetAssignmentList = (
       sawContent = true;
       lastWasComma = false;
       i++;
+
       continue;
     }
 
     if (code === charCode.closeParen) {
       if (--depth < 0) return false;
+
       sawContent = true;
       lastWasComma = false;
       i++;
+
+      continue;
+    }
+
+    if (isWordChar(code)) {
+      if (depth === 0 && !(code >= 48 && code <= 57)) {
+        const bucket = SET_CLAUSE_TERMINATORS_BY_FIRST[code | 32];
+
+        if (bucket)
+          for (let t = 0; t < bucket.length; t++)
+            if (matchesWord(sql, i, bucket[t]!, length)) return false;
+      }
+
+      do {
+        i++;
+      } while (i < placeholderPosition && isWordChar(sql.charCodeAt(i)));
+
+      sawContent = true;
+      lastWasComma = false;
+
       continue;
     }
 
@@ -236,13 +260,9 @@ const isInSetAssignmentList = (
         lastWasComma = true;
         sawContent = true;
         i++;
+
         continue;
       }
-
-      if (isWordChar(code) && !(code >= 48 && code <= 57))
-        for (let t = 0; t < SET_CLAUSE_TERMINATORS.length; t++)
-          if (matchesWord(sql, i, SET_CLAUSE_TERMINATORS[t]!, length))
-            return false;
     }
 
     sawContent = true;
@@ -258,14 +278,8 @@ const findSetKeyword = (sql: string, startFrom = 0): number => {
 
   for (let position = startFrom; position < length; position++) {
     const code = sql.charCodeAt(position);
-    const lower = code | 32;
 
-    if (
-      code === charCode.singleQuote ||
-      code === charCode.backtick ||
-      code === charCode.dash ||
-      code === charCode.slash
-    ) {
+    if (code < 128 && CONTEXT_TRIGGER[code]) {
       const contextEnd = skipSqlContext(sql, position);
 
       if (contextEnd !== -1) {
@@ -273,6 +287,8 @@ const findSetKeyword = (sql: string, startFrom = 0): number => {
         continue;
       }
     }
+
+    const lower = code | 32;
 
     if (lower === 115 && matchesWord(sql, position, 'set', length))
       return position + 3;
@@ -299,28 +315,58 @@ const hasSqlString = (value: unknown): value is Raw =>
   typeof value.toSqlString === 'function';
 
 const escapeString = (value: string): string => {
-  regex.escapeChars.lastIndex = 0;
+  const escapeChars = regex.escapeChars;
 
-  let chunkIndex = 0;
-  let escapedValue = '';
-  let match: RegExpExecArray | null;
+  escapeChars.lastIndex = 0;
 
-  for (
-    match = regex.escapeChars.exec(value);
-    match !== null;
-    match = regex.escapeChars.exec(value)
-  ) {
-    escapedValue += value.slice(chunkIndex, match.index);
-    escapedValue += CHARS_ESCAPE_MAP[match[0]];
-    chunkIndex = regex.escapeChars.lastIndex;
+  const first = escapeChars.exec(value);
+  if (first === null) return `'${value}'`;
+
+  const length = value.length;
+
+  let result = "'" + value.slice(0, first.index);
+  let chunkStart = first.index;
+
+  for (let i = first.index; i < length; i++) {
+    let escaped: string;
+
+    switch (value.charCodeAt(i)) {
+      case 0:
+        escaped = '\\0';
+        break;
+      case 8:
+        escaped = '\\b';
+        break;
+      case 9:
+        escaped = '\\t';
+        break;
+      case 10:
+        escaped = '\\n';
+        break;
+      case 13:
+        escaped = '\\r';
+        break;
+      case 26:
+        escaped = '\\Z';
+        break;
+      case 34:
+        escaped = '\\"';
+        break;
+      case 39:
+        escaped = "\\'";
+        break;
+      case 92:
+        escaped = '\\\\';
+        break;
+      default:
+        continue;
+    }
+
+    result += value.slice(chunkStart, i) + escaped;
+    chunkStart = i + 1;
   }
 
-  if (chunkIndex === 0) return `'${value}'`;
-
-  if (chunkIndex < value.length)
-    return `'${escapedValue}${value.slice(chunkIndex)}'`;
-
-  return `'${escapedValue}'`;
+  return result + value.slice(chunkStart) + "'";
 };
 
 const pad2 = (value: number): string => (value < 10 ? '0' + value : '' + value);
@@ -413,16 +459,19 @@ export const escapeId = (
 ): string => {
   if (Array.isArray(value)) {
     const length = value.length;
-    const parts = new Array<string>(length);
+    let sql = '';
 
-    for (let i = 0; i < length; i++)
-      parts[i] = escapeId(value[i], forbidQualified);
+    for (let i = 0; i < length; i++) {
+      if (i > 0) sql += ', ';
 
-    return parts.join(', ');
+      sql += escapeId(value[i], forbidQualified);
+    }
+
+    return sql;
   }
 
   const identifier = String(value);
-  const hasJsonOperator = identifier.indexOf('->') !== -1;
+  const hasJsonOperator = !forbidQualified && identifier.indexOf('->') !== -1;
 
   if (forbidQualified || hasJsonOperator) {
     if (identifier.indexOf('`') === -1) return `\`${identifier}\``;
@@ -442,19 +491,25 @@ export const objectToValues = (
   object: Record<string, SqlValue> | Map<string, SqlValue>,
   timezone?: Timezone
 ): string => {
-  const entries: [string, SqlValue][] =
-    object instanceof Map
-      ? Array.from(object.entries(), ([k, v]) => [String(k), v])
-      : Object.entries(object);
-
-  const keysLength = entries.length;
-
-  if (keysLength === 0) return '';
-
   let sql = '';
 
-  for (let i = 0; i < keysLength; i++) {
-    const [key, value] = entries[i]!;
+  if (object instanceof Map) {
+    for (const [key, value] of object) {
+      if (typeof value === 'function') continue;
+
+      if (sql.length > 0) sql += ', ';
+      sql += escapeId(String(key));
+      sql += ' = ';
+      sql += escape(value, true, timezone);
+    }
+
+    return sql;
+  }
+
+  for (const key in object) {
+    if (!hasOwnProperty.call(object, key)) continue;
+
+    const value = object[key];
 
     if (typeof value === 'function') continue;
 
@@ -472,20 +527,20 @@ export const bufferToString = (buffer: Buffer): string =>
 
 export const arrayToList = (array: SqlValue[], timezone?: Timezone): string => {
   const length = array.length;
-  const parts = new Array<string>(length);
+  let sql = '';
 
   for (let i = 0; i < length; i++) {
+    if (i > 0) sql += ', ';
+
     const value = array[i];
 
-    if (Array.isArray(value) || value instanceof Set) {
-      const sub = Array.isArray(value)
-        ? value
-        : Array.from(value as Set<SqlValue>);
-      parts[i] = `(${arrayToList(sub, timezone)})`;
-    } else parts[i] = escape(value, true, timezone);
+    if (Array.isArray(value)) sql += `(${arrayToList(value, timezone)})`;
+    else if (value instanceof Set)
+      sql += `(${arrayToList(Array.from(value), timezone)})`;
+    else sql += escape(value, true, timezone);
   }
 
-  return parts.join(', ');
+  return sql;
 };
 
 export const escape = (
@@ -563,7 +618,11 @@ export const format = (
     }
 
     if (placeholderLength === 2) escapedValue = escapeId(currentValue);
-    else if (typeof currentValue === 'number') escapedValue = `${currentValue}`;
+    else if (
+      typeof currentValue === 'number' ||
+      typeof currentValue === 'bigint'
+    )
+      escapedValue = `${currentValue}`;
     else if (
       typeof currentValue === 'object' &&
       currentValue !== null &&
@@ -571,12 +630,11 @@ export const format = (
     ) {
       const expandable =
         !(
-          currentValue instanceof Date ||
-          isDate(currentValue) ||
           Array.isArray(currentValue) ||
-          Buffer.isBuffer(currentValue) ||
           currentValue instanceof Uint8Array ||
-          hasSqlString(currentValue)
+          currentValue instanceof Date ||
+          hasSqlString(currentValue) ||
+          isDate(currentValue)
         ) &&
         (isRecord(currentValue) || currentValue instanceof Map);
 
@@ -626,7 +684,6 @@ export const format = (
   }
 
   if (chunkIndex === 0) return sql;
-
   if (chunkIndex < sql.length) return result + sql.slice(chunkIndex);
 
   return result;
