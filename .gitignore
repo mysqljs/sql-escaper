@@ -5,3 +5,13 @@ t.ts
 /lib
 /playground
 /coverage-reports
+
+# Blue Spec
+/.bluespec/templates/
+/.bluespec/hooks/
+/.bluespec/specializations.md
+/.bluespec/skills/*
+/.bluespec/proofs
+!/.bluespec/skills/sql.md
+/**/bluespec.*
+/**/bluespec/

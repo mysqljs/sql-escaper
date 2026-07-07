@@ -88,7 +88,7 @@ For _up-to-date_ documentation, always follow the [**README.md**](https://github
 ```js
 import { escape, escapeId, format, raw } from 'sql-escaper';
 
-escape("Hello 'World'");
+escape("Hello 'World'", true);
 // => "'Hello \\'World\\''"
 
 escapeId('table.column');
@@ -100,7 +100,7 @@ format('SELECT * FROM ?? WHERE id = ?', ['users', 42]);
 format('INSERT INTO users SET ?', [{ name: 'foo', email: 'bar@test.com' }]);
 // => "INSERT INTO users SET `name` = 'foo', `email` = 'bar@test.com'"
 
-escape(raw('NOW()'));
+escape(raw('NOW()'), true);
 // => 'NOW()'
 ```
 
@@ -131,12 +131,12 @@ escape(value: SqlValue, stringifyObjects?: boolean, timezone?: Timezone): string
 ```
 
 ```js
-escape(undefined); // 'NULL'
-escape(null); // 'NULL'
-escape(true); // 'true'
-escape(false); // 'false'
-escape(5); // '5'
-escape("Hello 'World"); // "'Hello \\'World'"
+escape(undefined, true); // 'NULL'
+escape(null, true); // 'NULL'
+escape(true, true); // 'true'
+escape(false, true); // 'false'
+escape(5, true); // '5'
+escape("Hello 'World", true); // "'Hello \\'World'"
 ```
 
 #### Dates
@@ -144,14 +144,14 @@ escape("Hello 'World"); // "'Hello \\'World'"
 Dates are converted to `YYYY-MM-DD HH:mm:ss.sss` format:
 
 ```js
-escape(new Date(2012, 4, 7, 11, 42, 3, 2));
+escape(new Date(2012, 4, 7, 11, 42, 3, 2), true);
 // => "'2012-05-07 11:42:03.002'"
 ```
 
 Invalid dates return `NULL`:
 
 ```js
-escape(new Date(NaN)); // 'NULL'
+escape(new Date(NaN), true); // 'NULL'
 ```
 
 You can specify a timezone:
@@ -159,9 +159,9 @@ You can specify a timezone:
 ```js
 const date = new Date(Date.UTC(2012, 4, 7, 11, 42, 3, 2));
 
-escape(date, false, 'Z'); // "'2012-05-07 11:42:03.002'"
-escape(date, false, '+01'); // "'2012-05-07 12:42:03.002'"
-escape(date, false, '-05:00'); // "'2012-05-07 06:42:03.002'"
+escape(date, true, 'Z'); // "'2012-05-07 11:42:03.002'"
+escape(date, true, '+01'); // "'2012-05-07 12:42:03.002'"
+escape(date, true, '-05:00'); // "'2012-05-07 06:42:03.002'"
 ```
 
 #### Buffers
@@ -169,56 +169,94 @@ escape(date, false, '-05:00'); // "'2012-05-07 06:42:03.002'"
 Buffers are converted to hex strings:
 
 ```js
-escape(Buffer.from([0, 1, 254, 255]));
+escape(Buffer.from([0, 1, 254, 255]), true);
 // => "X'0001feff'"
 ```
 
 #### Objects
 
-Objects with a `toSqlString` method will have that method called:
-
-```js
-escape({ toSqlString: () => 'NOW()' });
-// => 'NOW()'
-```
-
-Plain objects are converted to `key = value` pairs:
-
-```js
-escape({ a: 'b', c: 'd' });
-// => "`a` = 'b', `c` = 'd'"
-```
-
-Function properties in objects are ignored:
-
-```js
-escape({ a: 'b', c: () => {} });
-// => "`a` = 'b'"
-```
-
-When `stringifyObjects` is set to a non-nullish value, objects are stringified instead of being expanded into key-value pairs:
+When `stringifyObjects` is set to a non-nullish value **(recommended)**, objects are stringified instead of being expanded into key-value pairs:
 
 ```js
 escape({ a: 'b' }, true);
 // => "'[object Object]'"
 ```
 
+Objects with a `toSqlString` method will have that method called:
+
+```js
+escape({ toSqlString: () => 'NOW()' }, true);
+// => 'NOW()'
+```
+
+Plain objects are converted to `key = value` pairs **(discouraged)**:
+
+```js
+escape({ a: 'b', c: 'd' });
+// => "`a` = 'b', `c` = 'd'"
+```
+
+Function properties in objects are ignored **(discouraged)**:
+
+```js
+escape({ a: 'b', c: () => {} });
+// => "`a` = 'b'"
+```
+
+> [!CAUTION]
+>
+> Without `stringifyObjects`, plain objects are converted to `key = value` pairs, so an object reaching `escape` where a value is expected reshapes the query, for example:
+>
+> ```js
+> const userInput = { id: true }; // e.g. JSON.parse('{"id":true}')
+>
+> /** Unsafe 🔓 (value position) */
+> 'DELETE FROM entries WHERE id = ' + escape(userInput);
+> // => "DELETE FROM entries WHERE id = `id` = true"
+> // `id` = `id` is always true, so every row is deleted ❗️
+>
+> /** Valid ✅ (SET assignment) */
+> 'UPDATE users SET ' + escape({ name: 'foo', role: 'admin' });
+> // => "UPDATE users SET `name` = 'foo', `role` = 'admin'"
+> ```
+
+> [!TIP]
+>
+> Instead, `format` only expands an object where it is safe (e.g., a `SET` assignment) and stringifies it everywhere else, so the same input cannot reshape the query:
+>
+> ```js
+> const userInput = { id: true }; // e.g. JSON.parse('{"id":true}')
+>
+> /** Unsafe 🔐 (value position) */
+> format('DELETE FROM entries WHERE id = ?', [userInput]);
+> // => "DELETE FROM entries WHERE id = '[object Object]'"
+> // stringified to an inert value
+>
+> /** Valid ✅ (SET assignment) */
+> format('UPDATE users SET ?', [{ name: 'foo', role: 'admin' }]);
+> // => "UPDATE users SET `name` = 'foo', `role` = 'admin'"
+> // expanded on purpose
+> ```
+
 #### Arrays
 
 Arrays are turned into comma-separated lists:
 
 ```js
-escape([1, 2, 'c']);
+escape([1, 2, 'c'], true);
 // => "1, 2, 'c'"
 ```
 
 Nested arrays are turned into grouped lists (useful for bulk inserts):
 
 ```js
-escape([
-  [1, 2, 3],
-  [4, 5, 6],
-]);
+escape(
+  [
+    [1, 2, 3],
+    [4, 5, 6],
+  ],
+  true
+);
 // => '(1, 2, 3), (4, 5, 6)'
 ```
 
@@ -227,7 +265,7 @@ escape([
 Sets are treated like arrays, turning into comma-separated lists with natural deduplication:
 
 ```js
-escape(new Set([1, 2, 3]));
+escape(new Set([1, 2, 3]), true);
 // => '1, 2, 3'
 ```
 
@@ -352,9 +390,13 @@ raw(sql: string): Raw
 ```
 
 ```js
-escape(raw('NOW()'));
+escape(raw('NOW()'), true);
 // => 'NOW()'
+```
 
+Inside an expanded object, raw values are preserved **(discouraged)**:
+
+```js
 escape({ id: raw('LAST_INSERT_ID()') });
 // => '`id` = LAST_INSERT_ID()'
 ```
