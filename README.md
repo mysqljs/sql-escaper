@@ -391,6 +391,7 @@ Each benchmark formats `10,000` queries using `format` with `100` values, compar
 | SET with 100 objects                     |  344.8 ms |    241.0 ms | **1.43x faster** |
 | ON DUPLICATE KEY UPDATE with 100 values  |  462.0 ms |    362.7 ms | **1.27x faster** |
 | ON DUPLICATE KEY UPDATE with 100 objects |  559.4 ms |    437.8 ms | **1.28x faster** |
+| Multi-statement SET with 100 objects     |  348.7 ms |    243.4 ms | **1.43x faster** |
 
 - See detailed results and how the benchmarks are run in the [**benchmark**](https://github.com/mysqljs/sql-escaper/tree/main/benchmark) directory.
 
