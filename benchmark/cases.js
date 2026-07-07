@@ -40,4 +40,17 @@ export const cases = [
       mixedObject(100),
     ],
   },
+  {
+    label: 'Insert 100 strings requiring escape',
+    sql: `INSERT INTO t VALUES (${Array(100).fill('?').join(',')})`,
+    values: Array.from({ length: 100 }, (_, i) => `it's row "${i}"\n\\path`),
+  },
+  {
+    label: 'Insert 100 dates',
+    sql: `INSERT INTO t VALUES (${Array(100).fill('?').join(',')})`,
+    values: Array.from(
+      { length: 100 },
+      (_, i) => new Date(2025, i % 12, (i % 27) + 1, i % 24, i % 60, i % 60)
+    ),
+  },
 ];
