@@ -62,6 +62,33 @@ describe('Multi-statement: object expands after the nearest SET', () => {
       'SET @a = 1; SET @b = 2; UPDATE t SET `done` = true'
     );
   });
+
+  it('should expand INSERT SET ? when a session SET @var assigns a keyword value', () => {
+    const query = format('set @isActive = true; insert into Branches set ?;', {
+      id: 'abcdef123456',
+      location: 'HQ',
+    });
+
+    assert.strictEqual(
+      query,
+      "set @isActive = true; insert into Branches set `id` = 'abcdef123456', `location` = 'HQ';"
+    );
+  });
+
+  it('should expand the same object regardless of statement order', () => {
+    const value = { id: 'abcdef123456', location: 'HQ' };
+    const expanded = "`id` = 'abcdef123456', `location` = 'HQ'";
+
+    assert.strictEqual(
+      format('set @isActive = true; insert into Branches set ?;', value),
+      `set @isActive = true; insert into Branches set ${expanded};`
+    );
+
+    assert.strictEqual(
+      format('insert into Branches set ?; set @isActive = true;', value),
+      `insert into Branches set ${expanded}; set @isActive = true;`
+    );
+  });
 });
 
 describe('Multi-statement: object does NOT expand outside a SET clause', () => {
