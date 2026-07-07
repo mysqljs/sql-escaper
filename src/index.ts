@@ -498,6 +498,15 @@ export const format = (
       // Lazy: compute SET position only when we first encounter an object
       if (setIndex === -2) setIndex = findSetKeyword(sql);
 
+      // Nearest: advance to the SET keyword closest before this placeholder
+      if (setIndex !== -1)
+        for (
+          let nextSet = findSetKeyword(sql, setIndex);
+          nextSet !== -1 && nextSet <= placeholderPosition;
+          nextSet = findSetKeyword(sql, nextSet)
+        )
+          setIndex = nextSet;
+
       if (
         setIndex !== -1 &&
         setIndex <= placeholderPosition &&
