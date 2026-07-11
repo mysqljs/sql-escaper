@@ -164,6 +164,28 @@ escape(date, true, '+01'); // "'2012-05-07 12:42:03.002'"
 escape(date, true, '-05:00'); // "'2012-05-07 06:42:03.002'"
 ```
 
+#### Temporal
+
+[Temporal](https://tc39.es/proposal-temporal/) values are supported too.
+`Temporal.Instant` and `Temporal.ZonedDateTime` are absolute points in time and
+honor the `timezone` argument exactly like `Date` (millisecond precision):
+
+```js
+const instant = Temporal.Instant.from('2012-05-07T11:42:03.002Z');
+
+escape(instant, true, 'Z'); // "'2012-05-07 11:42:03.002'"
+escape(instant, true, '+0200'); // "'2012-05-07 13:42:03.002'"
+```
+
+`Temporal.PlainDateTime`, `Temporal.PlainDate` and `Temporal.PlainTime` are
+wall-clock values and are emitted verbatim as `DATETIME` / `DATE` / `TIME`
+literals, ignoring `timezone`:
+
+```js
+escape(Temporal.PlainDate.from('2012-05-07')); // "'2012-05-07'"
+escape(Temporal.PlainTime.from('11:42:03')); // "'11:42:03'"
+```
+
 #### Buffers
 
 Buffers are converted to hex strings:

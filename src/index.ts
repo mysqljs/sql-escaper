@@ -3,7 +3,7 @@
  * MIT LICENSE: https://github.com/mysqljs/sqlstring/blob/cd528556b4b6bcf300c3db515026935dedf7cfa1/LICENSE
  */
 
-import type { Raw, SqlValue, Timezone } from './types.js';
+import type { Raw, SqlValue, TemporalLike, Timezone } from './types.js';
 import { Buffer } from 'node:buffer';
 
 export type { Raw, SqlValue, Timezone } from './types.js';
@@ -308,6 +308,12 @@ const findSetKeyword = (sql: string, startFrom = 0): number => {
 const isDate = (value: unknown): value is Date =>
   Object.prototype.toString.call(value) === '[object Date]';
 
+// Detects Temporal values via their Symbol.toStringTag ('[object Temporal.*]').
+// The Temporal global is never referenced, so this stays inert on runtimes
+// without Temporal support.
+const isTemporal = (value: unknown): value is TemporalLike =>
+  Object.prototype.toString.call(value).startsWith('[object Temporal.');
+
 const hasSqlString = (value: unknown): value is Raw =>
   typeof value === 'object' &&
   value !== null &&
@@ -453,6 +459,32 @@ export const dateToString = (date: Date, timezone: Timezone): string => {
   );
 };
 
+export const temporalToString = (
+  value: TemporalLike,
+  timezone?: Timezone
+): string => {
+  switch (Object.prototype.toString.call(value)) {
+    // Absolute points in time. Handled like a Date so the `timezone` argument
+    // keeps the same meaning (millisecond precision, matching Date).
+    case '[object Temporal.Instant]':
+    case '[object Temporal.ZonedDateTime]':
+      return dateToString(
+        new Date(value.epochMilliseconds as number),
+        timezone || 'local'
+      );
+    // Wall-clock values without a time zone. Emitted verbatim as the matching
+    // MySQL DATE / TIME / DATETIME literal, ignoring `timezone`.
+    case '[object Temporal.PlainDateTime]':
+    case '[object Temporal.PlainDate]':
+    case '[object Temporal.PlainTime]':
+      return escapeString(value.toString().replace('T', ' '));
+    // Any other Temporal type (Duration, PlainYearMonth, ...) has no dedicated
+    // MySQL type; fall back to its ISO string.
+    default:
+      return escapeString(value.toString());
+  }
+};
+
 export const escapeId = (
   value: SqlValue,
   forbidQualified?: boolean
@@ -561,6 +593,7 @@ export const escape = (
 
     case 'object': {
       if (isDate(value)) return dateToString(value, timezone || 'local');
+      if (isTemporal(value)) return temporalToString(value, timezone);
       if (Array.isArray(value)) return arrayToList(value, timezone);
       if (value instanceof Set)
         return arrayToList(Array.from(value as Set<SqlValue>), timezone);
