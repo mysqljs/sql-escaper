@@ -14,7 +14,7 @@
 ### Rework includes:
 
 - **TypeScript** by default.
-- Support for `Uint8Array` and `BigInt`.
+- Support for `Uint8Array`, `BigInt`, and `Temporal`.
 - Support for both **CJS** and **ESM** exports.
 - Up to [**~40% faster**](#performance) compared to **sqlstring**.
 - Distinguishes when a keyword is used as value.

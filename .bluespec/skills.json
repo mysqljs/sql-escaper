@@ -1,9 +1,0 @@
-{
-  "name": "blue-spec",
-  "entries": [
-    {
-      "name": "sql",
-      "tags": ["SQL", "MySQL", "MariaDB", "Prepared Statement", "[required]"]
-    }
-  ]
-}

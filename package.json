@@ -30,10 +30,10 @@
     "benchmark": "cd benchmark && npm ci && bash index.sh",
     "build:esm": "esbuild src/index.ts --outfile=lib/index.mjs --platform=node --target=node12 --format=esm",
     "build": "rm -rf ./lib && tsc && npm run build:esm",
-    "test:node": "poku",
-    "test:bun": "bun --bun poku",
+    "test:node": "poku test",
+    "test:bun": "bun --bun poku test",
     "test:coverage": "mcr --import tsx --config mcr.config.ts npm run test:node",
-    "lint": "biome lint && prettier --check .",
+    "lint": "biome lint --error-on-warnings && prettier --check .",
     "lint:fix": "biome lint --write && prettier --write .github/workflows/*.yml .",
     "update": "pu minor && npm i && (npm audit fix || true) && npm run lint:fix"
   },
@@ -48,7 +48,7 @@
     "poku": "^4.3.2",
     "prettier": "^3.8.1",
     "tsx": "^4.21.0",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   },
   "exports": {
     ".": {
