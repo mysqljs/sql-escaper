@@ -460,15 +460,12 @@ export const temporalToString = (
   value: TemporalValue,
   timezone?: Timezone
 ): string => {
-  /** Absolute times share the `Date` path so `timezone` keeps its meaning */
   if ('epochMilliseconds' in value)
     return dateToString(new Date(value.epochMilliseconds), timezone || 'local');
 
-  /** PlainDateTime is the only ISO form using the `T` separator; MySQL wants a space */
   if (value[Symbol.toStringTag] === 'Temporal.PlainDateTime')
     return escapeString(value.toString().replace('T', ' '));
 
-  /** Remaining ISO forms are already valid literals (DATE, TIME) or have no MySQL equivalent */
   return escapeString(value.toString());
 };
 

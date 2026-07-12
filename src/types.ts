@@ -2,7 +2,6 @@ export type Raw = {
   toSqlString(): string;
 };
 
-/** Temporal values accepted by `escape()` */
 export type TemporalValue =
   | Temporal.Instant
   | Temporal.ZonedDateTime
