@@ -2,12 +2,23 @@ export type Raw = {
   toSqlString(): string;
 };
 
+export type TemporalValue =
+  | Temporal.Instant
+  | Temporal.ZonedDateTime
+  | Temporal.PlainDateTime
+  | Temporal.PlainDate
+  | Temporal.PlainTime
+  | Temporal.PlainYearMonth
+  | Temporal.PlainMonthDay
+  | Temporal.Duration;
+
 export type SqlValue =
   | string
   | number
   | bigint
   | boolean
   | Date
+  | TemporalValue
   | Buffer
   | Uint8Array
   | Raw

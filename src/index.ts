@@ -3,10 +3,10 @@
  * MIT LICENSE: https://github.com/mysqljs/sqlstring/blob/cd528556b4b6bcf300c3db515026935dedf7cfa1/LICENSE
  */
 
-import type { Raw, SqlValue, Timezone } from './types.js';
+import type { Raw, SqlValue, TemporalValue, Timezone } from './types.js';
 import { Buffer } from 'node:buffer';
 
-export type { Raw, SqlValue, Timezone } from './types.js';
+export type { Raw, SqlValue, TemporalValue, Timezone } from './types.js';
 
 const CONTEXT_TRIGGER = new Uint8Array(128);
 
@@ -308,6 +308,9 @@ const findSetKeyword = (sql: string, startFrom = 0): number => {
 const isDate = (value: unknown): value is Date =>
   Object.prototype.toString.call(value) === '[object Date]';
 
+const isTemporal = (value: unknown): value is TemporalValue =>
+  Object.prototype.toString.call(value).startsWith('[object Temporal.');
+
 const hasSqlString = (value: unknown): value is Raw =>
   typeof value === 'object' &&
   value !== null &&
@@ -453,6 +456,19 @@ export const dateToString = (date: Date, timezone: Timezone): string => {
   );
 };
 
+export const temporalToString = (
+  value: TemporalValue,
+  timezone?: Timezone
+): string => {
+  if ('epochMilliseconds' in value)
+    return dateToString(new Date(value.epochMilliseconds), timezone || 'local');
+
+  if (value[Symbol.toStringTag] === 'Temporal.PlainDateTime')
+    return escapeString(value.toString().replace('T', ' '));
+
+  return escapeString(value.toString());
+};
+
 export const escapeId = (
   value: SqlValue,
   forbidQualified?: boolean
@@ -561,6 +577,7 @@ export const escape = (
 
     case 'object': {
       if (isDate(value)) return dateToString(value, timezone || 'local');
+      if (isTemporal(value)) return temporalToString(value, timezone);
       if (Array.isArray(value)) return arrayToList(value, timezone);
       if (value instanceof Set)
         return arrayToList(Array.from(value as Set<SqlValue>), timezone);
