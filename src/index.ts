@@ -460,7 +460,7 @@ export const temporalToString = (
   value: TemporalValue,
   timezone?: Timezone
 ): string => {
-  if ('epochMilliseconds' in value)
+  if (typeof value.epochMilliseconds === 'number')
     return dateToString(new Date(value.epochMilliseconds), timezone || 'local');
 
   if (value[Symbol.toStringTag] === 'Temporal.PlainDateTime')

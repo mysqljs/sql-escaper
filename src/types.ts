@@ -2,15 +2,14 @@ export type Raw = {
   toSqlString(): string;
 };
 
-export type TemporalValue =
-  | Temporal.Instant
-  | Temporal.ZonedDateTime
-  | Temporal.PlainDateTime
-  | Temporal.PlainDate
-  | Temporal.PlainTime
-  | Temporal.PlainYearMonth
-  | Temporal.PlainMonthDay
-  | Temporal.Duration;
+// Structural match for Temporal objects, branded on Symbol.toStringTag like the
+// runtime `isTemporal` check. Avoids the global `Temporal` namespace so consumers
+// don't need TS's ESNext.Temporal lib (TS2503 for TypeScript < 7).
+export type TemporalValue = {
+  readonly [Symbol.toStringTag]: `Temporal.${string}`;
+  readonly epochMilliseconds?: number;
+  toString(): string;
+};
 
 export type SqlValue =
   | string
