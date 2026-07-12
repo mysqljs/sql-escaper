@@ -13,6 +13,9 @@
       ".bluespec"
     ]
   },
+  "javascript": {
+    "globals": ["Temporal"]
+  },
   "linter": {
     "enabled": true,
     "rules": {
