@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.1](https://github.com/mysqljs/sql-escaper/compare/v1.5.0...v1.5.1) (2026-07-12)
+
+
+### Bug Fixes
+
+* make `TemporalValue` self-contained ([#49](https://github.com/mysqljs/sql-escaper/issues/49)) ([f655fe1](https://github.com/mysqljs/sql-escaper/commit/f655fe1392014e4745954a48549e18e2d31e3355))
+
 ## [1.5.0](https://github.com/mysqljs/sql-escaper/compare/v1.4.0...v1.5.0) (2026-07-12)
 
 
