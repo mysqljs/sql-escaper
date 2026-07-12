@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/mysqljs/sql-escaper/compare/v1.4.0...v1.5.0) (2026-07-12)
+
+
+### Features
+
+* add Temporal support to escape ([#42](https://github.com/mysqljs/sql-escaper/issues/42)) ([5ea3a69](https://github.com/mysqljs/sql-escaper/commit/5ea3a695ca68c53d3a5295032596ba8fd9ea6893))
+
 ## [1.4.0](https://github.com/mysqljs/sql-escaper/compare/v1.3.3...v1.4.0) (2026-07-07)
 
 
