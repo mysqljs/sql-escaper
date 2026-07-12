@@ -460,22 +460,16 @@ export const temporalToString = (
   value: TemporalValue,
   timezone?: Timezone
 ): string => {
-  switch (Object.prototype.toString.call(value)) {
-    case '[object Temporal.Instant]':
-    case '[object Temporal.ZonedDateTime]':
-      return dateToString(
-        new Date(
-          (value as Temporal.Instant | Temporal.ZonedDateTime).epochMilliseconds
-        ),
-        timezone || 'local'
-      );
-    case '[object Temporal.PlainDateTime]':
-    case '[object Temporal.PlainDate]':
-    case '[object Temporal.PlainTime]':
-      return escapeString(value.toString().replace('T', ' '));
-    default:
-      return escapeString(value.toString());
-  }
+  /** Absolute times share the `Date` path so `timezone` keeps its meaning */
+  if ('epochMilliseconds' in value)
+    return dateToString(new Date(value.epochMilliseconds), timezone || 'local');
+
+  /** PlainDateTime is the only ISO form using the `T` separator; MySQL wants a space */
+  if (value[Symbol.toStringTag] === 'Temporal.PlainDateTime')
+    return escapeString(value.toString().replace('T', ' '));
+
+  /** Remaining ISO forms are already valid literals (DATE, TIME) or have no MySQL equivalent */
+  return escapeString(value.toString());
 };
 
 export const escapeId = (
