@@ -2,17 +2,16 @@ export type Raw = {
   toSqlString(): string;
 };
 
-/**
- * Structural shape of a Temporal value (`Temporal.Instant`, `Temporal.PlainDate`,
- * `Temporal.PlainDateTime`, ...). Declared structurally so the package does not
- * depend on the `Temporal` lib types being present. `epochMilliseconds` is only
- * populated on the absolute types (`Instant` / `ZonedDateTime`).
- */
-export type TemporalLike = {
-  readonly [Symbol.toStringTag]: string;
-  toString(): string;
-  readonly epochMilliseconds?: number;
-};
+/** Temporal values accepted by `escape()` */
+export type TemporalValue =
+  | Temporal.Instant
+  | Temporal.ZonedDateTime
+  | Temporal.PlainDateTime
+  | Temporal.PlainDate
+  | Temporal.PlainTime
+  | Temporal.PlainYearMonth
+  | Temporal.PlainMonthDay
+  | Temporal.Duration;
 
 export type SqlValue =
   | string
@@ -20,7 +19,7 @@ export type SqlValue =
   | bigint
   | boolean
   | Date
-  | TemporalLike
+  | TemporalValue
   | Buffer
   | Uint8Array
   | Raw

@@ -3,10 +3,10 @@
  * MIT LICENSE: https://github.com/mysqljs/sqlstring/blob/cd528556b4b6bcf300c3db515026935dedf7cfa1/LICENSE
  */
 
-import type { Raw, SqlValue, TemporalLike, Timezone } from './types.js';
+import type { Raw, SqlValue, TemporalValue, Timezone } from './types.js';
 import { Buffer } from 'node:buffer';
 
-export type { Raw, SqlValue, Timezone } from './types.js';
+export type { Raw, SqlValue, TemporalValue, Timezone } from './types.js';
 
 const CONTEXT_TRIGGER = new Uint8Array(128);
 
@@ -308,10 +308,7 @@ const findSetKeyword = (sql: string, startFrom = 0): number => {
 const isDate = (value: unknown): value is Date =>
   Object.prototype.toString.call(value) === '[object Date]';
 
-// Detects Temporal values via their Symbol.toStringTag ('[object Temporal.*]').
-// The Temporal global is never referenced, so this stays inert on runtimes
-// without Temporal support.
-const isTemporal = (value: unknown): value is TemporalLike =>
+const isTemporal = (value: unknown): value is TemporalValue =>
   Object.prototype.toString.call(value).startsWith('[object Temporal.');
 
 const hasSqlString = (value: unknown): value is Raw =>
@@ -460,26 +457,22 @@ export const dateToString = (date: Date, timezone: Timezone): string => {
 };
 
 export const temporalToString = (
-  value: TemporalLike,
+  value: TemporalValue,
   timezone?: Timezone
 ): string => {
   switch (Object.prototype.toString.call(value)) {
-    // Absolute points in time. Handled like a Date so the `timezone` argument
-    // keeps the same meaning (millisecond precision, matching Date).
     case '[object Temporal.Instant]':
     case '[object Temporal.ZonedDateTime]':
       return dateToString(
-        new Date(value.epochMilliseconds as number),
+        new Date(
+          (value as Temporal.Instant | Temporal.ZonedDateTime).epochMilliseconds
+        ),
         timezone || 'local'
       );
-    // Wall-clock values without a time zone. Emitted verbatim as the matching
-    // MySQL DATE / TIME / DATETIME literal, ignoring `timezone`.
     case '[object Temporal.PlainDateTime]':
     case '[object Temporal.PlainDate]':
     case '[object Temporal.PlainTime]':
       return escapeString(value.toString().replace('T', ' '));
-    // Any other Temporal type (Duration, PlainYearMonth, ...) has no dedicated
-    // MySQL type; fall back to its ISO string.
     default:
       return escapeString(value.toString());
   }
