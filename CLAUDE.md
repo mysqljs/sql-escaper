@@ -4,5 +4,5 @@
 
 ## Skills
 
-- Use the `/bluespec` skill ([.claude/skills/bluespec/SKILL.md](.claude/skills/bluespec/SKILL.md)), whenever you build or change code, so it improves safety by default. If it is not available, run `npx blue-spec@latest pull` to install it from its manifest.
+- Use the `/lagune` skill ([.claude/skills/lagune/SKILL.md](.claude/skills/lagune/SKILL.md)), whenever you build or change code, so it improves safety by default. If it is not available, run `npx -y lagune@latest pull` to install it from its manifest.
 - Use the `/engineering` skill ([.claude/skills/engineering/SKILL.md](.claude/skills/engineering/SKILL.md)) whenever you build or change code, so it follows the project's approaches.

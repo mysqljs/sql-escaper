@@ -6,12 +6,13 @@ t.ts
 /playground
 /coverage-reports
 
-# Blue Spec
-/.bluespec/templates/
-/.bluespec/hooks/
-/.bluespec/specializations.md
-/.bluespec/skills/*
-/.bluespec/proofs
-!/.bluespec/skills/sql.md
-/**/bluespec.*
-/**/bluespec/
+# Lagune
+/.lagune/templates/
+/.lagune/hooks/
+/.lagune/specializations.md
+/.lagune/skills/*
+/.lagune/proofs
+!/.lagune/skills/sql.md
+/**/lagune.*
+/**/lagune/
+/.lagune/proofs/

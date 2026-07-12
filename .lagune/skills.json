@@ -1,0 +1,15 @@
+{
+  "name": "lagune",
+  "entries": [
+    {
+      "name": "sql",
+      "tags": [
+        "SQL",
+        "MySQL",
+        "MariaDB",
+        "Prepared Statement",
+        "[required]"
+      ]
+    }
+  ]
+}

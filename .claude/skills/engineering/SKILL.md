@@ -35,7 +35,7 @@ Don't cause a regression: every input, security vectors included, must come out 
 
 ### Security
 
-Before you write or change code, read the project's security policies in `.bluespec/memory/charter.md` and hold to every one of them.
+Before you write or change code, read the project's security policies in `.lagune/memory/charter.md` and hold to every one of them.
 
 ### Tests
 
