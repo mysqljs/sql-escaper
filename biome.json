@@ -10,7 +10,7 @@
       "playground",
       "t.ts",
       "mcr.config.ts",
-      ".bluespec"
+      ".lagune"
     ]
   },
   "javascript": {
