@@ -1,5 +1,5 @@
 {
   "tasks": {
-    "test:deno": "deno run -A npm:poku test"
+    "test:deno": "deno run -A npm:poku -r=\"compact\" test"
   }
 }

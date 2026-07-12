@@ -99,6 +99,12 @@ describe('SET continuation: value positions must NOT expand', () => {
     assert.strictEqual(query, "UPDATE t SET a = 1 WHERE b = '[object Object]'");
   });
 
+  it('should stringify an object after an unbalanced closing parenthesis', () => {
+    const query = format('UPDATE t SET a = 1), ?', [{ x: 1 }]);
+
+    assert.strictEqual(query, "UPDATE t SET a = 1), '[object Object]'");
+  });
+
   it('should stringify an object in an ORDER BY comma list after SET', () => {
     const query = format('UPDATE t SET a = 1 ORDER BY b, ?', [{ x: 1 }]);
 

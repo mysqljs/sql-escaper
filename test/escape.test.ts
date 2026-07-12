@@ -65,6 +65,23 @@ describe('Safe object to key-value expansion for SET clauses', () => {
     assert.strictEqual(escape({ name: 'foo', fn: () => {} }), "`name` = 'foo'");
   });
 
+  it('should skip function values inside a Map', () => {
+    const value = new Map<string, string | (() => void)>([
+      ['name', 'foo'],
+      ['fn', () => {}],
+    ]);
+
+    assert.strictEqual(escape(value), "`name` = 'foo'");
+  });
+
+  it('should skip inherited properties', () => {
+    const value = { own: 1 };
+
+    Object.setPrototypeOf(value, { inherited: 2 });
+
+    assert.strictEqual(escape(value), '`own` = 1');
+  });
+
   it('should return empty string for empty object', () => {
     assert.strictEqual(escape({}), '');
   });

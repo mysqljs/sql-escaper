@@ -195,7 +195,7 @@ const isInSetAssignmentList = (
   let sawContent = false;
   let lastWasComma = false;
 
-  for (let i = setEnd; i < placeholderPosition; ) {
+  for (let i = setEnd; i < placeholderPosition;) {
     const code = sql.charCodeAt(i);
 
     if (code < 128 && CONTEXT_TRIGGER[code]) {
