@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.2](https://github.com/mysqljs/sql-escaper/compare/v1.5.1...v1.5.2) (2026-09-14)
+
+
+### Bug Fixes
+
+* ensure Node.js 12 compatibility ([#52](https://github.com/mysqljs/sql-escaper/issues/52)) ([8b830c7](https://github.com/mysqljs/sql-escaper/commit/8b830c785521d42813736441e92c31556dd28a30))
+
 ## [1.5.1](https://github.com/mysqljs/sql-escaper/compare/v1.5.0...v1.5.1) (2026-07-12)
 
 
