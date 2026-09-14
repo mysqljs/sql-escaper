@@ -1,16 +1,16 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.5.13/schema.json",
   "files": {
-    "include": ["**/**"],
-    "ignore": [
-      "node_modules",
-      "lib",
-      "benchmark",
-      "coverage-reports",
-      "playground",
-      "t.ts",
-      "mcr.config.ts",
-      ".lagune"
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/lib",
+      "!**/benchmark",
+      "!**/coverage-reports",
+      "!**/playground",
+      "!**/t.ts",
+      "!**/mcr.config.ts",
+      "!**/.lagune"
     ]
   },
   "javascript": {
@@ -18,31 +18,34 @@
   },
   "linter": {
     "enabled": true,
+    "domains": {
+      "astro": "none",
+      "drizzle": "none",
+      "next": "none",
+      "playwright": "none",
+      "qwik": "none",
+      "react": "none",
+      "reactNative": "none",
+      "solid": "none",
+      "svelte": "none",
+      "tailwind": "none",
+      "turborepo": "none",
+      "vue": "none"
+    },
     "rules": {
-      "all": true,
+      "preset": "all",
+      "nursery": "on",
       "complexity": {
-        "all": true,
-        "noExcessiveCognitiveComplexity": "off"
-      },
-      "a11y": {
-        "all": true
+        "noExcessiveCognitiveComplexity": "off",
+        "noExcessiveLinesPerFunction": "off",
+        "noImplicitCoercions": "off"
       },
       "correctness": {
-        "all": true,
         "useImportExtensions": "error",
-        "noNodejsModules": "off"
-      },
-      "nursery": {
-        "all": true,
-        "useImportRestrictions": "off",
-        "noSecrets": "off",
-        "useExplicitType": "off",
-        "noOctalEscape": "off",
-        "useGuardForIn": "off",
-        "noNestedTernary": "off"
+        "noNodejsModules": "off",
+        "noPrivateImports": "off"
       },
       "performance": {
-        "all": true,
         "noAccumulatingSpread": "error",
         "noBarrelFile": "error",
         "noDelete": "error",
@@ -50,27 +53,75 @@
         "useTopLevelRegex": "error"
       },
       "security": {
-        "all": true
-      },
-      "suspicious": {
-        "all": true,
-        "noControlCharactersInRegex": "off",
-        "noShadowRestrictedNames": "off"
+        "noSecrets": "off"
       },
       "style": {
-        "all": true,
         "noDefaultExport": "error",
         "useNamingConvention": "off",
         "useBlockStatements": "off",
         "noNonNullAssertion": "off",
         "useTemplate": "off",
-        "useNodejsImportProtocol": "off"
+        "useNodejsImportProtocol": "off",
+        "noNestedTernary": "off",
+        "noContinue": "off",
+        "noExcessiveLinesPerFile": "off",
+        "noIncrementDecrement": "off",
+        "noMagicNumbers": "off",
+        "noTernary": "off",
+        "useConsistentMethodSignatures": "off",
+        "useConsistentTypeDefinitions": "off",
+        "useDestructuring": "off",
+        "useExportsLast": "off",
+        "useNumericSeparators": "off"
+      },
+      "suspicious": {
+        "noControlCharactersInRegex": "off",
+        "noShadowRestrictedNames": "off",
+        "noOctalEscape": "off",
+        "useGuardForIn": "off",
+        "noBitwiseOperators": "off",
+        "noForIn": "off"
       }
     }
   },
   "overrides": [
     {
-      "include": ["test"],
+      "includes": ["**"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "useExplicitType": "off",
+            "useExplicitReturnType": "off",
+            "noIdenticalTestTitle": "off",
+            "noMisleadingReturnType": "off",
+            "noUnsafeTypeAssertion": "off",
+            "noUselessTypeConversion": "off",
+            "useConsistentTestIt": "off",
+            "useNamedCaptureGroup": "off",
+            "useNullishCoalescing": "off",
+            "useRegexpExec": "off",
+            "useUnicodeRegex": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/src/**"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "useImportExtensions": {
+              "level": "error",
+              "options": {
+                "forceJsExtensions": true
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/test/**"],
       "linter": {
         "rules": {
           "correctness": {
