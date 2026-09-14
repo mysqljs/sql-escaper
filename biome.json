@@ -63,7 +63,8 @@
         "useNamingConvention": "off",
         "useBlockStatements": "off",
         "noNonNullAssertion": "off",
-        "useTemplate": "off"
+        "useTemplate": "off",
+        "useNodejsImportProtocol": "off"
       }
     }
   },
