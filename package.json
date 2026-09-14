@@ -35,7 +35,7 @@
     "test:coverage": "mcr --import tsx --config mcr.config.ts npm run test:node",
     "lint": "biome lint --error-on-warnings && prettier --check .",
     "lint:fix": "biome lint --write && prettier --write .github/workflows/*.yml .",
-    "update": "pu minor && npm i && (npm audit fix || true) && npm run lint:fix"
+    "update": "pu && npm i && (npm audit fix || true) && npm run lint:fix"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.13",
