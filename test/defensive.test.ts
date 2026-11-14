@@ -30,6 +30,45 @@ describe('Defensive: an object bound outside SET never becomes query structure',
 });
 
 describe('Defensive: a stray SET keyword cannot open object expansion', () => {
+  const contexts = [
+    {
+      name: 'single-quoted string',
+      sql: "INSERT INTO audit (action, detail) VALUES ('SET', ?)",
+      expected:
+        "INSERT INTO audit (action, detail) VALUES ('SET', '[object Object]')",
+    },
+    {
+      name: 'double-quoted string',
+      sql: 'INSERT INTO audit (action, detail) VALUES ("SET", ?)',
+      expected:
+        'INSERT INTO audit (action, detail) VALUES ("SET", \'[object Object]\')',
+    },
+    {
+      name: 'backtick identifier',
+      sql: 'INSERT INTO audit (action, detail) VALUES (`SET`, ?)',
+      expected:
+        "INSERT INTO audit (action, detail) VALUES (`SET`, '[object Object]')",
+    },
+    {
+      name: 'double-dash comment',
+      sql: 'INSERT INTO audit (action, detail) VALUES (-- SET\n1, ?)',
+      expected:
+        "INSERT INTO audit (action, detail) VALUES (-- SET\n1, '[object Object]')",
+    },
+    {
+      name: 'hash comment',
+      sql: 'INSERT INTO audit (action, detail) VALUES (# SET\n1, ?)',
+      expected:
+        "INSERT INTO audit (action, detail) VALUES (# SET\n1, '[object Object]')",
+    },
+    {
+      name: 'block comment',
+      sql: 'INSERT INTO audit (action, detail) VALUES (/* SET */ 1, ?)',
+      expected:
+        "INSERT INTO audit (action, detail) VALUES (/* SET */ 1, '[object Object]')",
+    },
+  ];
+
   it('should stop the assignment list at WHERE so a later object stays inert', () => {
     assert.strictEqual(
       format('UPDATE users SET role = ? WHERE id = ?', ['user', { id: true }]),
@@ -37,19 +76,62 @@ describe('Defensive: a stray SET keyword cannot open object expansion', () => {
     );
   });
 
-  it('should ignore a set written inside a line comment', () => {
-    assert.strictEqual(
-      format('SELECT * FROM t -- set here\nWHERE d = ?', [{ d: 1 }]),
-      "SELECT * FROM t -- set here\nWHERE d = '[object Object]'"
-    );
-  });
+  for (const { name, sql, expected } of contexts)
+    it(`should ignore a set written inside a ${name}`, () => {
+      assert.strictEqual(format(sql, [{ password: 1 }]), expected);
+    });
+});
 
-  it('should ignore a set written inside a string literal', () => {
-    assert.strictEqual(
-      format("SELECT * FROM t WHERE note = 'set x = 1' AND c = ?", [{ c: 1 }]),
-      "SELECT * FROM t WHERE note = 'set x = 1' AND c = '[object Object]'"
-    );
-  });
+describe('Defensive: a value never lands inside a literal or comment', () => {
+  const placements = [
+    {
+      name: 'an apostrophe in a hash comment',
+      sql: "SELECT * FROM users\n# user's filter\nWHERE note = 'what?' AND id = ?",
+      values: [' OR 1=1 -- '],
+      expected:
+        "SELECT * FROM users\n# user's filter\nWHERE note = 'what?' AND id = ' OR 1=1 -- '",
+    },
+    {
+      name: 'an apostrophe in a double-dash comment',
+      sql: "SELECT * FROM users\n-- user's filter\nWHERE note = 'what?' AND id = ?",
+      values: [' OR 1=1 -- '],
+      expected:
+        "SELECT * FROM users\n-- user's filter\nWHERE note = 'what?' AND id = ' OR 1=1 -- '",
+    },
+    {
+      name: 'an apostrophe in a double-quoted string',
+      sql: "SELECT * FROM users WHERE name = \"O'Brien\" AND note = 'why?' AND id = ?",
+      values: [' OR 1=1 -- '],
+      expected:
+        "SELECT * FROM users WHERE name = \"O'Brien\" AND note = 'why?' AND id = ' OR 1=1 -- '",
+    },
+    {
+      name: 'a double placeholder in a single-quoted string',
+      sql: "SELECT * FROM users WHERE note = 'really??' AND id = ?",
+      values: ["x' OR 1=1 -- "],
+      expected:
+        "SELECT * FROM users WHERE note = 'really??' AND id = 'x\\' OR 1=1 -- '",
+    },
+    {
+      name: 'a double placeholder in a double-quoted string',
+      sql: 'SELECT * FROM users WHERE note = "really??" AND id = ?',
+      values: ['x" OR 1=1 -- '],
+      expected:
+        'SELECT * FROM users WHERE note = "really??" AND id = \'x\\" OR 1=1 -- \'',
+    },
+    {
+      name: 'a double placeholder in a hash comment',
+      sql: 'SELECT * FROM users WHERE id = ? # why??\nAND role = ?',
+      values: [1, "x\nOR role = 'admin' -- "],
+      expected:
+        "SELECT * FROM users WHERE id = 1 # why??\nAND role = 'x\\nOR role = \\'admin\\' -- '",
+    },
+  ];
+
+  for (const { name, sql, values, expected } of placements)
+    it(`should bind a hostile value at the real placeholder after ${name}`, () => {
+      assert.strictEqual(format(sql, values), expected);
+    });
 });
 
 describe('Defensive: an identifier cannot break out of its backticks', () => {

@@ -38,8 +38,10 @@ const regex = {
 
 const charCode = {
   singleQuote: 39,
+  doubleQuote: 34,
   backtick: 96,
   backslash: 92,
+  hash: 35,
   dash: 45,
   slash: 47,
   asterisk: 42,
@@ -58,7 +60,9 @@ const charCode = {
 
 // Chars that open a string, identifier, or comment
 CONTEXT_TRIGGER[charCode.singleQuote] = 1;
+CONTEXT_TRIGGER[charCode.doubleQuote] = 1;
 CONTEXT_TRIGGER[charCode.backtick] = 1;
+CONTEXT_TRIGGER[charCode.hash] = 1;
 CONTEXT_TRIGGER[charCode.dash] = 1;
 CONTEXT_TRIGGER[charCode.slash] = 1;
 
@@ -113,18 +117,29 @@ const matchesWord = (
   );
 };
 
+const skipLineComment = (sql: string, start: number): number => {
+  const lineBreak = sql.indexOf('\n', start);
+
+  return lineBreak === -1 ? sql.length : lineBreak + 1;
+};
+
 const skipSqlContext = (sql: string, position: number): number => {
   const currentChar = sql.charCodeAt(position);
-  const nextChar = sql.charCodeAt(position + 1);
 
-  if (currentChar === charCode.singleQuote) {
-    for (let cursor = position + 1; cursor < sql.length; cursor++) {
-      if (sql.charCodeAt(cursor) === charCode.backslash) cursor++;
-      else if (sql.charCodeAt(cursor) === charCode.singleQuote)
-        return cursor + 1;
+  if (
+    currentChar === charCode.singleQuote ||
+    currentChar === charCode.doubleQuote
+  ) {
+    const length = sql.length;
+
+    for (let cursor = position + 1; cursor < length; cursor++) {
+      const code = sql.charCodeAt(cursor);
+
+      if (code === charCode.backslash) cursor++;
+      else if (code === currentChar) return cursor + 1;
     }
 
-    return sql.length;
+    return length;
   }
 
   if (currentChar === charCode.backtick) {
@@ -144,13 +159,15 @@ const skipSqlContext = (sql: string, position: number): number => {
     return length;
   }
 
+  if (currentChar === charCode.hash) return skipLineComment(sql, position + 1);
+
+  const nextChar = sql.charCodeAt(position + 1);
+
   if (currentChar === charCode.dash && nextChar === charCode.dash) {
     const afterDash = sql.charCodeAt(position + 2);
 
-    if (Number.isNaN(afterDash) || afterDash <= charCode.space) {
-      const lineBreak = sql.indexOf('\n', position + 2);
-      return lineBreak === -1 ? sql.length : lineBreak + 1;
-    }
+    if (Number.isNaN(afterDash) || afterDash <= charCode.space)
+      return skipLineComment(sql, position + 2);
 
     return -1;
   }
