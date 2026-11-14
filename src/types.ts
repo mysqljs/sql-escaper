@@ -27,3 +27,8 @@ export type SqlValue =
   | undefined;
 
 export type Timezone = 'local' | 'Z' | (string & NonNullable<unknown>);
+
+export type SqlMode = {
+  /** The server runs with the `ANSI_QUOTES` SQL mode: double quotes delimit identifiers, not strings. */
+  ansiQuotes?: boolean;
+};
