@@ -571,20 +571,24 @@ export const escapeId = (
   }
 
   const identifier = String(value);
-  const hasJsonOperator = !forbidQualified && identifier.indexOf('->') !== -1;
 
-  if (forbidQualified || hasJsonOperator) {
-    if (identifier.indexOf('`') === -1) return `\`${identifier}\``;
+  if (identifier.indexOf('`') === -1) {
+    if (
+      forbidQualified ||
+      identifier.indexOf('.') === -1 ||
+      identifier.indexOf('->') !== -1
+    )
+      return `\`${identifier}\``;
 
-    return `\`${identifier.replace(regex.backtick, '``')}\``;
+    return `\`${identifier.replace(regex.dot, '`.`')}\``;
   }
 
-  if (identifier.indexOf('`') === -1 && identifier.indexOf('.') === -1)
-    return `\`${identifier}\``;
+  const quoted = identifier.replace(regex.backtick, '``');
 
-  return `\`${identifier
-    .replace(regex.backtick, '``')
-    .replace(regex.dot, '`.`')}\``;
+  if (forbidQualified || identifier.indexOf('->') !== -1)
+    return `\`${quoted}\``;
+
+  return `\`${quoted.replace(regex.dot, '`.`')}\``;
 };
 
 export const objectToValues = (
