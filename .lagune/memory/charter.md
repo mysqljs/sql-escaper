@@ -65,6 +65,7 @@ A control is held even when a reason to skip it feels reasonable:
 
 ## Governance
 
-This charter supersedes ad hoc decisions about how values are escaped, how identifiers are quoted, or how objects are expanded. Because this library is itself a security primitive, that logic is its security-critical core: changes there are reviewed against these principles and backed by the regression test suite, the coverage checks, and the CodeQL analysis already in CI. Vulnerabilities are handled through the process in SECURITY.md. Amendments to this charter are made by pull request with a version bump, and the reasoning is recorded in the change.
+- This charter guides every security decision in each Lagune phase, and every change to it is reviewed and approved by the maintainer.
+- It holds only what a deterministic check cannot capture, so it never repeats a control that linters or automated tools already enforces.
 
 Version: 1.1.0 | Ratified: 2026-07-07

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://lagune.ai/schemas/configs.json",
+  "categories": ["owasp", "javascript"],
+  "catalog": [
+    {
+      "name": "sql",
+      "tags": ["SQL", "MySQL", "MariaDB", "Prepared Statement", "[required]"]
+    }
+  ],
+  "checkers": { "ignore": [".agents", ".claude", "benchmark"] }
+}

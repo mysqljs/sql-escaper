@@ -1,0 +1,59 @@
+{
+  "version": 2,
+  "skills": {
+    "lagune": {
+      "source": "wellwelwel/lagune",
+      "sourceType": "github",
+      "skillPath": "skills/lagune/SKILL.md",
+      "computedHash": "b054a969cf27b5bce86a24c664e27e87c2d35f6ab3ab905181c2ef632905c807"
+    },
+    "lagune-charter": {
+      "source": "wellwelwel/lagune",
+      "sourceType": "github",
+      "skillPath": "skills/lagune-charter/SKILL.md",
+      "computedHash": "56fa561b09bca2416440683e28d626edf85bbc27140acf31852720e7cc399c93"
+    },
+    "lagune-detect": {
+      "source": "wellwelwel/lagune",
+      "sourceType": "github",
+      "skillPath": "skills/lagune-detect/SKILL.md",
+      "computedHash": "1138cab468f52de85799869d7af2f9dbeb0ad267574707152616b77bd50dc760"
+    },
+    "lagune-harden": {
+      "source": "wellwelwel/lagune",
+      "sourceType": "github",
+      "skillPath": "skills/lagune-harden/SKILL.md",
+      "computedHash": "643e7c6c11c3493b7fed1be781d169f4335ec03141b2887f6912baa81ba53d7f"
+    },
+    "lagune-plan": {
+      "source": "wellwelwel/lagune",
+      "sourceType": "github",
+      "skillPath": "skills/lagune-plan/SKILL.md",
+      "computedHash": "209be15165467acf7e55fcdcc776dadabff3f4bf70c9e2085da89773820ee21b"
+    },
+    "lagune-prove": {
+      "source": "wellwelwel/lagune",
+      "sourceType": "github",
+      "skillPath": "skills/lagune-prove/SKILL.md",
+      "computedHash": "00a5cc7acfe49ede979813524a1be1932e973a530d23168175680e11c914d535"
+    },
+    "lagune-repair": {
+      "source": "wellwelwel/lagune",
+      "sourceType": "github",
+      "skillPath": "skills/lagune-repair/SKILL.md",
+      "computedHash": "6bf964ee9064854d408e9ec79e38f97fc26e270726838097bd4e8fd59f1fb366"
+    },
+    "lagune-specialize": {
+      "source": "wellwelwel/lagune",
+      "sourceType": "github",
+      "skillPath": "skills/lagune-specialize/SKILL.md",
+      "computedHash": "65cc4bb51be09e92dcd2b70798427339386fb42a046c70318920cbd509dc5087"
+    },
+    "lagune-verify": {
+      "source": "wellwelwel/lagune",
+      "sourceType": "github",
+      "skillPath": "skills/lagune-verify/SKILL.md",
+      "computedHash": "25ebaec20d7ee078094eeffa3c5555dbc197455e03109dc9aa9fb7f7c313702d"
+    }
+  }
+}

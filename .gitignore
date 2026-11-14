@@ -6,13 +6,4 @@ t.ts
 /playground
 /coverage-reports
 
-# Lagune
-/.lagune/templates/
-/.lagune/hooks/
-/.lagune/specializations.md
-/.lagune/skills/*
 /.lagune/proofs
-!/.lagune/skills/sql.md
-/**/lagune.*
-/**/lagune/
-/.lagune/proofs/
