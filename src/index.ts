@@ -362,6 +362,46 @@ const findSetKeyword = (
   return -1;
 };
 
+const createSetAssignmentTest = (sql: string, ansiQuotes: boolean) => {
+  let setIndex = -2; // -2 = not yet computed, -1 = no SET found
+  let nextSetIndex = -1; // -1 = no SET after setIndex
+
+  return (chunkIndex: number, placeholderPosition: number): boolean => {
+    // A SET assignment follows the keyword (a letter) or a comma continuing the list
+    let previous = placeholderPosition - 1;
+    while (previous >= chunkIndex && isWhitespace(sql.charCodeAt(previous)))
+      previous--;
+
+    const previousChar =
+      previous >= chunkIndex ? toLower(sql.charCodeAt(previous)) : 0;
+
+    if (
+      (previousChar < 97 || previousChar > 122) &&
+      previousChar !== charCode.comma
+    )
+      return false;
+
+    // Lazy: resolve the first SET and its successor once
+    if (setIndex === -2) {
+      setIndex = findSetKeyword(sql, 0, ansiQuotes);
+      nextSetIndex =
+        setIndex === -1 ? -1 : findSetKeyword(sql, setIndex, ansiQuotes);
+    }
+
+    // Nearest: advance to the SET closest before this placeholder
+    while (nextSetIndex !== -1 && nextSetIndex <= placeholderPosition) {
+      setIndex = nextSetIndex;
+      nextSetIndex = findSetKeyword(sql, nextSetIndex, ansiQuotes);
+    }
+
+    return (
+      setIndex !== -1 &&
+      setIndex <= placeholderPosition &&
+      isInSetAssignmentList(sql, setIndex, placeholderPosition, ansiQuotes)
+    );
+  };
+};
+
 const isDate = (value: unknown): value is Date =>
   Object.prototype.toString.call(value) === '[object Date]';
 
@@ -713,8 +753,7 @@ export const format = (
   const valuesArray: SqlValue[] = Array.isArray(values) ? values : [values];
   const length = valuesArray.length;
 
-  let setIndex = -2; // -2 = not yet computed, -1 = no SET found
-  let nextSetIndex = -1; // -1 = no SET after setIndex
+  let isSetAssignment: ReturnType<typeof createSetAssignmentTest> | undefined;
   let result = '';
   let chunkIndex = 0;
   let valuesIndex = 0;
@@ -755,46 +794,12 @@ export const format = (
       else if (isMark(currentValue))
         escapedValue = objectToValues(currentValue.value, timezone);
       else {
-        // A SET assignment follows the keyword (a letter) or a comma continuing the list
-        let previous = placeholderPosition - 1;
-        while (previous >= chunkIndex && isWhitespace(sql.charCodeAt(previous)))
-          previous--;
+        if (isSetAssignment === undefined)
+          isSetAssignment = createSetAssignmentTest(sql, ansiQuotes);
 
-        const previousChar =
-          previous >= chunkIndex ? toLower(sql.charCodeAt(previous)) : 0;
-
-        if (
-          (previousChar < 97 || previousChar > 122) &&
-          previousChar !== charCode.comma
-        )
-          escapedValue = escapeValue(currentValue, true, timezone, false);
-        else {
-          // Lazy: resolve the first SET and its successor once
-          if (setIndex === -2) {
-            setIndex = findSetKeyword(sql, 0, ansiQuotes);
-            nextSetIndex =
-              setIndex === -1 ? -1 : findSetKeyword(sql, setIndex, ansiQuotes);
-          }
-
-          // Nearest: advance to the SET closest before this placeholder
-          while (nextSetIndex !== -1 && nextSetIndex <= placeholderPosition) {
-            setIndex = nextSetIndex;
-            nextSetIndex = findSetKeyword(sql, nextSetIndex, ansiQuotes);
-          }
-
-          if (
-            setIndex !== -1 &&
-            setIndex <= placeholderPosition &&
-            isInSetAssignmentList(
-              sql,
-              setIndex,
-              placeholderPosition,
-              ansiQuotes
-            )
-          )
-            escapedValue = objectToValues(currentValue, timezone);
-          else escapedValue = escapeValue(currentValue, true, timezone, false);
-        }
+        if (isSetAssignment(chunkIndex, placeholderPosition))
+          escapedValue = objectToValues(currentValue, timezone);
+        else escapedValue = escapeValue(currentValue, true, timezone, false);
       }
     } else
       escapedValue = escapeValue(
