@@ -1,3 +1,5 @@
 /lib
 /CHANGELOG.md
 /.lagune
+/.agents
+/skills-lock.json

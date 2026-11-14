@@ -10,7 +10,9 @@
       "!**/playground",
       "!**/t.ts",
       "!**/mcr.config.ts",
-      "!**/.lagune"
+      "!**/.lagune",
+      "!**/.agents",
+      "!**/skills-lock.json"
     ]
   },
   "javascript": {

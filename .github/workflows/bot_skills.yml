@@ -1,0 +1,126 @@
+name: '🧩 Bot — Skills'
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - skills-lock.json
+  schedule:
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency: skills-update
+
+env:
+  BRANCH: bot/update-skills
+
+jobs:
+  update:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    name: Update
+    permissions:
+      contents: read
+    outputs:
+      changed: ${{ steps.changes.outputs.changed }}
+    steps:
+      - name: ➕ Actions - Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: ➕ Actions - Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          check-latest: true
+          node-version: lts/*
+
+      - name: 🧩 Updating Skills
+        run: npx --yes skills@1.8.1 update --project --yes
+
+      - name: 📝 Collecting Changes
+        id: changes
+        run: |
+          git add --all
+
+          if git diff --cached --quiet; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git diff --cached --binary > "$RUNNER_TEMP/skills.patch"
+          echo 'changed=true' >> "$GITHUB_OUTPUT"
+
+      - name: 📤 Uploading Changes
+        if: steps.changes.outputs.changed == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: skills-patch
+          path: ${{ runner.temp }}/skills.patch
+          retention-days: 1
+
+  pull-request:
+    needs: update
+    if: needs.update.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    name: Pull Request
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: ➕ Actions - Checkout
+        uses: actions/checkout@v4
+
+      - name: 📥 Downloading Changes
+        uses: actions/download-artifact@v8
+        with:
+          name: skills-patch
+          path: ${{ runner.temp }}
+
+      - name: 🔀 Opening Pull Request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: 'chore: update agent skills'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch --create "$BRANCH"
+          git apply --index "$RUNNER_TEMP/skills.patch"
+          git commit --message "$TITLE"
+
+          if git fetch --quiet --depth=1 origin "$BRANCH" 2> /dev/null && git diff --quiet FETCH_HEAD HEAD; then
+            echo "::notice::$BRANCH already holds this update."
+            exit 0
+          fi
+
+          git push --force origin "$BRANCH"
+
+          if [ -z "$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')" ]; then
+            gh pr create --base main --head "$BRANCH" --title "$TITLE" --body 'Updates the agent skills recorded in `skills-lock.json`. Skills are instructions that coding agents follow, so review every change before merging.'
+          fi
+
+  close:
+    needs: update
+    if: needs.update.outputs.changed == 'false'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    name: Close Outdated
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: 🧹 Closing Outdated Pull Request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          pull_request_number="$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')"
+
+          if [ -n "$pull_request_number" ]; then
+            gh pr close "$pull_request_number" --delete-branch --comment 'The skills on main are already up to date.'
+          fi
