@@ -68,4 +68,4 @@ A control is held even when a reason to skip it feels reasonable:
 - This charter guides every security decision in each Lagune phase, and every change to it is reviewed and approved by the maintainer.
 - It holds only what a deterministic check cannot capture, so it never repeats a control that linters or automated tools already enforce.
 
-Version: 1.2.1 | Ratified: 2026-07-07
+Version: 1.2.0 | Ratified: 2026-07-07
