@@ -1,5 +1,12 @@
+import type { EXPAND_SYMBOL } from './index.js';
+
 export type Raw = {
   toSqlString(): string;
+};
+
+export type Expand = {
+  readonly [EXPAND_SYMBOL]: true;
+  readonly value: Record<string, SqlValue> | Map<string, SqlValue>;
 };
 
 /** Avoids the global `Temporal` namespace so consumers don't need TS's ESNext.Temporal lib. */
@@ -19,6 +26,7 @@ export type SqlValue =
   | Buffer
   | Uint8Array
   | Raw
+  | Expand
   | Record<string, unknown>
   | SqlValue[]
   | Set<SqlValue>

@@ -4,39 +4,39 @@
 
 ### I. Every value is escaped before it becomes SQL
 
-Never place a caller-supplied value into a SQL string without first passing it through this library's value-escaping routines. Every value type the library accepts (strings, numbers, bigints, booleans, dates, buffers, byte arrays, arrays, and sets) MUST be handled by a dedicated escaper, and any new type MUST get one before it is allowed through. The fallback for an unrecognized value MUST be to escape it as a quoted string, never to emit it as-is. A value that reaches the output unescaped is a bug of the highest severity.
+Never place a caller-supplied value into SQL without escaping it first. Every kind of value the library accepts MUST have its own escaping rule before it is allowed through, and a value the library does not recognize MUST be escaped as a quoted string, never emitted as it is.
 
-- Why: this library exists to be the safe boundary between untrusted data and a database. If even one value slips through unescaped, an attacker can break out of the intended value and rewrite the query, which is exactly the SQL injection the whole project is meant to stop.
+- Why: this library is the boundary between untrusted data and the database. A single value that slips through unescaped lets an attacker break out of it and rewrite the query, which is the SQL injection the project exists to stop.
 
 ### II. Identifiers are quoted so a name can never break out or silently reach another table
 
-Always wrap an identifier (a database, table, or column name) in backticks, and double any backtick inside it, so a caller-supplied name cannot close the quoting and inject SQL. When the caller asks for a single whole name, a dot inside that name MUST be treated as part of the name, never as a separator that reaches into another table or schema.
+Always quote an identifier (a database, table, or column name) so a caller-supplied name cannot close its quoting and inject SQL. When the caller asks for a single whole name, a dot inside it MUST stay part of the name, never a separator that reaches another table or schema.
 
-- Why: identifiers flow in through `??` placeholders and through the keys of expanded objects, and they are quoted with backticks rather than the quotes used for values. A name that escapes its backticks injects SQL just as a broken-out value would, and an unintended dot can silently redirect a query to data the caller was never meant to touch.
+- Why: a name that breaks out of its quoting injects SQL just as a broken-out value does, and an unintended dot can silently point a query at data the caller was never meant to touch.
 
-### III. Objects expand into SQL only inside a SET assignment, and fail closed everywhere else
+### III. Objects expand into SQL only where the query author asked for it, and fail closed everywhere else
 
-Always stringify a plain object or Map to a single quoted value (`'[object Object]'`, `'[object Map]'`) whenever it is used anywhere other than a `SET` or `ON DUPLICATE KEY UPDATE` assignment list. Never expand a caller-supplied object into `` `key` = value `` fragments in any other position, regardless of the `stringifyObjects` setting. When the library cannot be certain a placeholder sits inside a SET assignment list, it MUST stringify the object rather than expand it.
+Never expand an object into column-and-value fragments outside a `SET` or `ON DUPLICATE KEY UPDATE` assignment list, whatever the caller's settings. Anywhere else, and wherever the position is uncertain, the object MUST become one inert quoted value. The one exception is an object the developer explicitly marked in code: it MAY expand in any position, but only where it is bound directly, never when nested inside another value, and always with every key quoted as an identifier and every value escaped. The mark MUST be something parsed or deserialized input can never carry, MUST count only when the value itself carries it, and MUST be verified again when the value becomes SQL.
 
-- Why: this is the exact flaw the project was created to fix. When an object passed as an ordinary parameter is expanded into column-and-value fragments, an attacker who controls that object controls part of the query structure, turning `WHERE password = ?` into an authentication bypass. Expansion is safe only where the query author clearly asked for it, so any doubt about the position MUST resolve to the safe, stringified form.
+- Why: an object that expands where a single value was expected hands whoever controls it part of the query, turning a password check into an authentication bypass. Expansion is safe only where the query author asked for it, in the query itself or with a mark in code, and data can never forge that request.
 
-### IV. `raw()` and `toSqlString` are an unescaped trapdoor that MUST stay narrow
+### IV. Raw SQL is an unescaped trapdoor that MUST stay narrow
 
-Never widen what bypasses escaping. A value from `raw()`, or any object exposing a `toSqlString` method, is emitted verbatim with no escaping, so it MUST only ever carry query text the developer wrote, never data that originated from a user. Any change that lets more input reach the output unescaped MUST be treated as a security change, not a convenience.
+Never widen what bypasses escaping. A value the developer declares as raw SQL is emitted verbatim, so it MUST only ever carry query text the developer wrote, never data that originated from a user. Any change that lets more input reach the output unescaped MUST be treated as a security change.
 
-- Why: `raw()` is a deliberate escape hatch for trusted SQL fragments like `NOW()`. If untrusted input can reach it, or if the set of values treated as raw quietly grows, the library's core protection is silently switched off for that value and injection returns.
+- Why: the trapdoor exists for trusted fragments such as `NOW()`. If untrusted input reaches it, or the set of values treated as raw quietly grows, escaping is silently switched off for that value and injection returns.
 
 ### V. Escaping behavior only changes on purpose, proven by tests
 
-Never alter how any value is escaped, how an identifier is quoted, or when an object expands without a test that pins the new behavior and keeps the existing regression tests green. Always treat a change to escaping, quoting, or object-expansion logic as a security change, not a refactor. The behavior parity that makes this a safe drop-in replacement for sqlstring MUST be preserved unless a deviation is deliberate and documented.
+Never change how a value is escaped, how an identifier is quoted, or when an object expands without a test that pins the new behavior while every existing test still passes. Always treat such a change as a security change, never a refactor.
 
-- Why: this code is a security primitive that database drivers depend on by default. A quiet change to the escaping rules, even one that looks like a harmless cleanup, can reopen an injection path that no one notices until it is exploited. Tests are what tell a safe change from a dangerous one.
+- Why: database drivers depend on this code by default, so a quiet change that looks like a harmless cleanup can reopen an injection path no one notices until it is exploited.
 
 ### VI. No runtime dependencies
 
-Never add a runtime dependency to this package. The library MUST ship as self-contained code with only development tooling as dependencies. A runtime dependency is added only if it is genuinely unavoidable and reviewed as attack surface first.
+Never add a runtime dependency unless it is genuinely unavoidable and has been reviewed as attack surface first. The package MUST ship as self-contained code.
 
-- Why: this package is installed beneath MySQL drivers in countless applications, so anything it pulls in at runtime inherits that reach. A single compromised or malicious dependency would sit directly in the query path of every consumer, which is the worst possible place for supply-chain risk.
+- Why: the package sits in the query path of countless applications beneath MySQL drivers, so a single compromised dependency would reach every one of them.
 
 ## Baseline discipline
 
@@ -66,6 +66,6 @@ A control is held even when a reason to skip it feels reasonable:
 ## Governance
 
 - This charter guides every security decision in each Lagune phase, and every change to it is reviewed and approved by the maintainer.
-- It holds only what a deterministic check cannot capture, so it never repeats a control that linters or automated tools already enforces.
+- It holds only what a deterministic check cannot capture, so it never repeats a control that linters or automated tools already enforce.
 
-Version: 1.1.0 | Ratified: 2026-07-07
+Version: 1.2.1 | Ratified: 2026-07-07

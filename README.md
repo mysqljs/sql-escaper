@@ -30,7 +30,7 @@
 >
 > 🔐 **SQL Escaper** is intended to fix a potential [**SQL Injection vulnerability**](https://flattsecurity.medium.com/finding-an-unseen-sql-injection-by-bypassing-escape-functions-in-mysqljs-mysql-90b27f6542b4) reported in 2022. By combining the original [**sqlstring**](https://github.com/mysqljs/sqlstring) with [**mysqljs/mysql**](https://github.com/mysqljs/mysql) or [**MySQL2**](https://github.com/sidorares/node-mysql2), objects passed as values could be expanded into **SQL** fragments, potentially allowing attackers to manipulate query structure. See [sidorares/node-mysql2#4051](https://github.com/sidorares/node-mysql2/issues/4051) for details.
 >
-> Regardless of the `stringifyObjects` value, objects used outside of `SET` or `ON DUPLICATE KEY UPDATE` contexts are always stringified as `'[object Object]'`. This is a security measure to prevent [SQL Injection](https://flattsecurity.medium.com/finding-an-unseen-sql-injection-by-bypassing-escape-functions-in-mysqljs-mysql-90b27f6542b4) and is not interpreted as a breaking change for **sqlstring** usage.
+> Regardless of the `stringifyObjects` value, objects used outside of `SET` or `ON DUPLICATE KEY UPDATE` contexts are stringified as `'[object Object]'` unless you mark them with [`expand`](#expand). This is a security measure to prevent [SQL Injection](https://flattsecurity.medium.com/finding-an-unseen-sql-injection-by-bypassing-escape-functions-in-mysqljs-mysql-90b27f6542b4) and is not interpreted as a breaking change for **sqlstring** usage.
 
 ---
 
@@ -86,7 +86,7 @@ For _up-to-date_ documentation, always follow the [**README.md**](https://github
 ### Quickstart
 
 ```js
-import { escape, escapeId, format, raw } from 'sql-escaper';
+import { escape, escapeId, expand, format, raw } from 'sql-escaper';
 
 escape("Hello 'World'", true);
 // => "'Hello \\'World\\''"
@@ -100,6 +100,9 @@ format('SELECT * FROM ?? WHERE id = ?', ['users', 42]);
 format('INSERT INTO users SET ?', [{ name: 'foo', email: 'bar@test.com' }]);
 // => "INSERT INTO users SET `name` = 'foo', `email` = 'bar@test.com'"
 
+format('SELECT * FROM users WHERE ?', [expand({ id: 42 })]);
+// => 'SELECT * FROM users WHERE `id` = 42'
+
 escape(raw('NOW()'), true);
 // => 'NOW()'
 ```
@@ -109,13 +112,13 @@ escape(raw('NOW()'), true);
 #### ES Modules
 
 ```js
-import { escape, escapeId, format, raw } from 'sql-escaper';
+import { escape, escapeId, expand, format, raw } from 'sql-escaper';
 ```
 
 #### CommonJS
 
 ```js
-const { escape, escapeId, format, raw } = require('sql-escaper');
+const { escape, escapeId, expand, format, raw } = require('sql-escaper');
 ```
 
 ---
@@ -197,7 +200,7 @@ escape(Buffer.from([0, 1, 254, 255]), true);
 
 #### Objects
 
-When `stringifyObjects` is set to a non-nullish value **(recommended)**, objects are stringified instead of being expanded into key-value pairs:
+When `stringifyObjects` is set to a non-nullish value **(recommended)**, objects are stringified instead of being expanded into key-value pairs, unless marked with [`expand`](#expand):
 
 ```js
 escape({ a: 'b' }, true);
@@ -244,7 +247,7 @@ escape({ a: 'b', c: () => {} });
 
 > [!TIP]
 >
-> Instead, `format` only expands an object where it is safe (e.g., a `SET` assignment) and stringifies it everywhere else, so the same input cannot reshape the query:
+> Instead, `format` only expands an object where it is safe (e.g., a `SET` assignment) or marked with [`expand`](#expand), and stringifies it everywhere else, so the same input cannot reshape the query:
 >
 > ```js
 > const userInput = { id: true }; // e.g. JSON.parse('{"id":true}')
@@ -373,7 +376,7 @@ format(
 // => "INSERT INTO users (name, email) VALUES ('foo', 'bar@test.com') ON DUPLICATE KEY UPDATE `name` = 'foo', `email` = 'bar@test.com'"
 ```
 
-When `stringifyObjects` is truthy, objects are always stringified:
+When `stringifyObjects` is truthy, objects are stringified unless marked with [`expand`](#expand):
 
 ```js
 format('UPDATE users SET ?', [{ name: 'foo' }], true);
@@ -394,7 +397,7 @@ format('UPDATE users SET ?', [
 // => "UPDATE users SET `name` = 'foo', `email` = 'bar@test.com'"
 ```
 
-Outside of `SET` or `ON DUPLICATE KEY UPDATE`, a `Map` is stringified as `'[object Map]'`, the same security measure applied to objects:
+Outside of `SET` or `ON DUPLICATE KEY UPDATE`, a `Map` follows the same security measure applied to objects, so it is stringified as `'[object Map]'` unless marked with [`expand`](#expand):
 
 ```js
 format('SELECT * FROM users WHERE data = ?', [new Map([['id', 1]])]);
@@ -442,12 +445,58 @@ raw(42); // throws TypeError
 
 ---
 
+### expand
+
+Marks an object or a `Map` to be expanded into `key = value` pairs wherever it is bound, in any position of the statement and regardless of the `stringifyObjects` value.
+
+```ts
+expand(value: Record<string, unknown> | Map<string, SqlValue>): Expand
+```
+
+```js
+format('SELECT * FROM users WHERE ?', [expand({ id: 1 })]);
+// => 'SELECT * FROM users WHERE `id` = 1'
+
+format(
+  'UPDATE users SET ? WHERE id = ?',
+  [expand({ name: 'foo' }), { id: true }],
+  true
+);
+// => "UPDATE users SET `name` = 'foo' WHERE id = '[object Object]'"
+
+escape(expand({ id: 1 }), true);
+// => '`id` = 1'
+```
+
+A marked object produces the same text it produces in a `SET` clause, with dates in the timezone given to the call. Only the marked value expands, so other objects in the statement keep the default behavior, and a mark nested inside an array, a `Set`, an object, or a `Map` is stringified like any nested object:
+
+```js
+format('SELECT * FROM users WHERE id IN (?)', [[expand({ id: 1 })]]);
+// => "SELECT * FROM users WHERE id IN ('[object Object]')"
+```
+
+Only accepts an object or a `Map`:
+
+```js
+expand('id = 1'); // throws TypeError
+expand([{ id: 1 }]); // throws TypeError
+expand(raw('NOW()')); // throws TypeError
+```
+
+The mark is the symbol registered as `sql-escaper.expand`, so a value marked by one copy of **SQL Escaper** (for example, your own dependency) expands in another (for example, the one **MySQL2** uses).
+
+> [!WARNING]
+>
+> The keys of a marked object become column names. Mark only an object whose keys your code controls, never one parsed from user input, such as a request body, or the client chooses which columns the query reads or changes.
+
+---
+
 ### TypeScript
 
 You can import the available types:
 
 ```ts
-import type { Raw, SqlMode, SqlValue, Timezone } from 'sql-escaper';
+import type { Expand, Raw, SqlMode, SqlValue, Timezone } from 'sql-escaper';
 ```
 
 ---
