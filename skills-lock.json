@@ -1,6 +1,12 @@
 {
   "version": 2,
   "skills": {
+    "engineering": {
+      "source": "wellwelwel/skills",
+      "sourceType": "github",
+      "skillPath": "skills/development/engineering/SKILL.md",
+      "computedHash": "e6044c9bdb37bad54cefd2e68b88e5b2f459a4c9ce609cc940fadf3074a9e0ad"
+    },
     "lagune": {
       "source": "wellwelwel/lagune",
       "sourceType": "github",
@@ -54,6 +60,12 @@
       "sourceType": "github",
       "skillPath": "skills/lagune-verify/SKILL.md",
       "computedHash": "25ebaec20d7ee078094eeffa3c5555dbc197455e03109dc9aa9fb7f7c313702d"
+    },
+    "testing": {
+      "source": "wellwelwel/skills",
+      "sourceType": "github",
+      "skillPath": "skills/development/testing/SKILL.md",
+      "computedHash": "1f2339da8d640da04502f28313be40b3e394909c290b93bc46b179889850fb50"
     }
   }
 }
