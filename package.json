@@ -43,7 +43,7 @@
     "@js-temporal/polyfill": "^0.5.1",
     "@types/node": "^26.6.6",
     "esbuild": "^0.28.2",
-    "monocart-coverage-reports": "^2.13.0",
+    "monocart-coverage-reports": "^3.2.1",
     "packages-update": "^2.0.0",
     "poku": "^4.5.0",
     "prettier": "^3.9.6",
