@@ -333,7 +333,7 @@ escapeId(['a', 'b', 't.c']);
 Formats a SQL query by replacing `?` placeholders with escaped values and `??` with escaped identifiers.
 
 ```ts
-format(sql: string, values?: SqlValue | SqlValue[], stringifyObjects?: boolean, timezone?: Timezone): string
+format(sql: string, values?: SqlValue | SqlValue[], stringifyObjects?: boolean, timezone?: Timezone, sqlMode?: SqlMode): string
 ```
 
 ```js
@@ -401,6 +401,17 @@ format('SELECT * FROM users WHERE data = ?', [new Map([['id', 1]])]);
 // => "SELECT * FROM users WHERE data = '[object Map]'"
 ```
 
+#### SQL mode
+
+When the server runs with the [`ANSI_QUOTES`](https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_ansi_quotes) SQL mode, set `ansiQuotes` so double-quoted text is read as an identifier, where a backslash is an ordinary character:
+
+```js
+const sqlMode = { ansiQuotes: true };
+
+format('SELECT "dir\\" FROM t WHERE id = ?', [1], false, 'local', sqlMode);
+// => 'SELECT "dir\\" FROM t WHERE id = 1'
+```
+
 ---
 
 ### raw
@@ -436,7 +447,7 @@ raw(42); // throws TypeError
 You can import the available types:
 
 ```ts
-import type { Raw, SqlValue, Timezone } from 'sql-escaper';
+import type { Raw, SqlMode, SqlValue, Timezone } from 'sql-escaper';
 ```
 
 ---
@@ -482,7 +493,8 @@ Each benchmark formats `10,000` queries using `format` with `100` values, compar
 
 - The escaping methods in this library only work when the [`NO_BACKSLASH_ESCAPES`](https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_no_backslash_escapes) SQL mode is disabled (which is the default state for MySQL servers).
 - This library performs **client-side escaping** to generate SQL strings. The syntax for `format` may look similar to a prepared statement, but it is not — the escaping rules from this module are used to produce the resulting SQL string.
-- When using `format`, **all** `?` placeholders are replaced, including those contained in comments and strings.
+- When using `format`, placeholders inside strings (`'...'` and `"..."`), backtick identifiers, and comments (`#`, `/* */`, and `--` followed by whitespace) are left as they are. Executable comments (`/*! */`) and optimizer hints (`/*+ */`) are read as SQL, so their placeholders are replaced.
+- By default, double-quoted text is read as a string, where a backslash escapes the next character. If the server runs with the [`ANSI_QUOTES`](https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_ansi_quotes) SQL mode, set [`ansiQuotes`](#sql-mode), or the placeholders after a double-quoted identifier that ends in a backslash can be skipped or misplaced.
 - When structured user input is provided as the value to escape, care should be taken to validate the shape of the input, as the resulting escaped string may contain more than a single value.
 - `NaN` and `Infinity` are left as-is. MySQL does not support these values, and trying to insert them will trigger MySQL errors.
 - The string provided to `raw()` will **skip all escaping**, so be careful when passing in unvalidated input.

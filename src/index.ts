@@ -3,10 +3,22 @@
  * MIT LICENSE: https://github.com/mysqljs/sqlstring/blob/cd528556b4b6bcf300c3db515026935dedf7cfa1/LICENSE
  */
 
-import type { Raw, SqlValue, TemporalValue, Timezone } from './types.js';
+import type {
+  Raw,
+  SqlMode,
+  SqlValue,
+  TemporalValue,
+  Timezone,
+} from './types.js';
 import { Buffer } from 'buffer';
 
-export type { Raw, SqlValue, TemporalValue, Timezone } from './types.js';
+export type {
+  Raw,
+  SqlMode,
+  SqlValue,
+  TemporalValue,
+  Timezone,
+} from './types.js';
 
 const CONTEXT_TRIGGER = new Uint8Array(128);
 
@@ -38,8 +50,10 @@ const regex = {
 
 const charCode = {
   singleQuote: 39,
+  doubleQuote: 34,
   backtick: 96,
   backslash: 92,
+  hash: 35,
   dash: 45,
   slash: 47,
   asterisk: 42,
@@ -58,7 +72,9 @@ const charCode = {
 
 // Chars that open a string, identifier, or comment
 CONTEXT_TRIGGER[charCode.singleQuote] = 1;
+CONTEXT_TRIGGER[charCode.doubleQuote] = 1;
 CONTEXT_TRIGGER[charCode.backtick] = 1;
+CONTEXT_TRIGGER[charCode.hash] = 1;
 CONTEXT_TRIGGER[charCode.dash] = 1;
 CONTEXT_TRIGGER[charCode.slash] = 1;
 
@@ -113,44 +129,71 @@ const matchesWord = (
   );
 };
 
-const skipSqlContext = (sql: string, position: number): number => {
-  const currentChar = sql.charCodeAt(position);
-  const nextChar = sql.charCodeAt(position + 1);
+const skipLineComment = (sql: string, start: number): number => {
+  const lineBreak = sql.indexOf('\n', start);
 
-  if (currentChar === charCode.singleQuote) {
-    for (let cursor = position + 1; cursor < sql.length; cursor++) {
-      if (sql.charCodeAt(cursor) === charCode.backslash) cursor++;
-      else if (sql.charCodeAt(cursor) === charCode.singleQuote)
-        return cursor + 1;
+  return lineBreak === -1 ? sql.length : lineBreak + 1;
+};
+
+const skipQuotedIdentifier = (
+  sql: string,
+  position: number,
+  quote: number
+): number => {
+  const length = sql.length;
+
+  for (let cursor = position + 1; cursor < length; cursor++) {
+    if (sql.charCodeAt(cursor) !== quote) continue;
+
+    if (sql.charCodeAt(cursor + 1) === quote) {
+      cursor++;
+      continue;
     }
 
-    return sql.length;
+    return cursor + 1;
   }
 
-  if (currentChar === charCode.backtick) {
+  return length;
+};
+
+const skipSqlContext = (
+  sql: string,
+  position: number,
+  ansiQuotes: boolean
+): number => {
+  const currentChar = sql.charCodeAt(position);
+
+  if (
+    currentChar === charCode.singleQuote ||
+    currentChar === charCode.doubleQuote
+  ) {
+    if (ansiQuotes && currentChar === charCode.doubleQuote)
+      return skipQuotedIdentifier(sql, position, currentChar);
+
     const length = sql.length;
 
     for (let cursor = position + 1; cursor < length; cursor++) {
-      if (sql.charCodeAt(cursor) !== charCode.backtick) continue;
+      const code = sql.charCodeAt(cursor);
 
-      if (sql.charCodeAt(cursor + 1) === charCode.backtick) {
-        cursor++;
-        continue;
-      }
-
-      return cursor + 1;
+      if (code === charCode.backslash) cursor++;
+      else if (code === currentChar) return cursor + 1;
     }
 
     return length;
   }
 
+  if (currentChar === charCode.backtick)
+    return skipQuotedIdentifier(sql, position, currentChar);
+
+  if (currentChar === charCode.hash) return skipLineComment(sql, position + 1);
+
+  const nextChar = sql.charCodeAt(position + 1);
+
   if (currentChar === charCode.dash && nextChar === charCode.dash) {
     const afterDash = sql.charCodeAt(position + 2);
 
-    if (Number.isNaN(afterDash) || afterDash <= charCode.space) {
-      const lineBreak = sql.indexOf('\n', position + 2);
-      return lineBreak === -1 ? sql.length : lineBreak + 1;
-    }
+    if (Number.isNaN(afterDash) || afterDash <= charCode.space)
+      return skipLineComment(sql, position + 2);
 
     return -1;
   }
@@ -168,7 +211,11 @@ const skipSqlContext = (sql: string, position: number): number => {
   return -1;
 };
 
-const findNextPlaceholder = (sql: string, start: number): number => {
+const findNextPlaceholder = (
+  sql: string,
+  start: number,
+  ansiQuotes: boolean
+): number => {
   const sqlLength = sql.length;
 
   for (let position = start; position < sqlLength; position++) {
@@ -176,7 +223,7 @@ const findNextPlaceholder = (sql: string, start: number): number => {
     if (code === charCode.questionMark) return position;
 
     if (code < 128 && CONTEXT_TRIGGER[code]) {
-      const contextEnd = skipSqlContext(sql, position);
+      const contextEnd = skipSqlContext(sql, position, ansiQuotes);
 
       if (contextEnd !== -1) position = contextEnd - 1;
     }
@@ -188,7 +235,8 @@ const findNextPlaceholder = (sql: string, start: number): number => {
 const isInSetAssignmentList = (
   sql: string,
   setEnd: number,
-  placeholderPosition: number
+  placeholderPosition: number,
+  ansiQuotes: boolean
 ): boolean => {
   const length = sql.length;
   let depth = 0;
@@ -199,7 +247,7 @@ const isInSetAssignmentList = (
     const code = sql.charCodeAt(i);
 
     if (code < 128 && CONTEXT_TRIGGER[code]) {
-      const contextEnd = skipSqlContext(sql, i);
+      const contextEnd = skipSqlContext(sql, i, ansiQuotes);
 
       if (contextEnd !== -1) {
         i = contextEnd;
@@ -273,14 +321,18 @@ const isInSetAssignmentList = (
   return depth === 0 && (!sawContent || lastWasComma);
 };
 
-const findSetKeyword = (sql: string, startFrom = 0): number => {
+const findSetKeyword = (
+  sql: string,
+  startFrom: number,
+  ansiQuotes: boolean
+): number => {
   const length = sql.length;
 
   for (let position = startFrom; position < length; position++) {
     const code = sql.charCodeAt(position);
 
     if (code < 128 && CONTEXT_TRIGGER[code]) {
-      const contextEnd = skipSqlContext(sql, position);
+      const contextEnd = skipSqlContext(sql, position, ansiQuotes);
 
       if (contextEnd !== -1) {
         position = contextEnd - 1;
@@ -601,14 +653,18 @@ export const escape = (
   }
 };
 
+// biome-ignore lint/complexity/useMaxParams: the first four parameters keep sqlstring's positional API
 export const format = (
   sql: string,
   values?: SqlValue | SqlValue[],
   stringifyObjects?: boolean,
-  timezone?: Timezone
+  timezone?: Timezone,
+  sqlMode?: SqlMode
 ): string => {
   if (values === undefined || values === null) return sql;
 
+  const ansiQuotes =
+    sqlMode !== undefined && sqlMode !== null && sqlMode.ansiQuotes === true;
   const valuesArray: SqlValue[] = Array.isArray(values) ? values : [values];
   const length = valuesArray.length;
 
@@ -617,7 +673,7 @@ export const format = (
   let result = '';
   let chunkIndex = 0;
   let valuesIndex = 0;
-  let placeholderPosition = findNextPlaceholder(sql, 0);
+  let placeholderPosition = findNextPlaceholder(sql, 0, ansiQuotes);
 
   while (valuesIndex < length && placeholderPosition !== -1) {
     // Count consecutive question marks to detect ? vs ?? vs ???+
@@ -630,7 +686,11 @@ export const format = (
     const currentValue = valuesArray[valuesIndex];
 
     if (placeholderLength > 2) {
-      placeholderPosition = findNextPlaceholder(sql, placeholderEnd);
+      placeholderPosition = findNextPlaceholder(
+        sql,
+        placeholderEnd,
+        ansiQuotes
+      );
       continue;
     }
 
@@ -672,20 +732,26 @@ export const format = (
         else {
           // Lazy: resolve the first SET and its successor once
           if (setIndex === -2) {
-            setIndex = findSetKeyword(sql);
-            nextSetIndex = setIndex === -1 ? -1 : findSetKeyword(sql, setIndex);
+            setIndex = findSetKeyword(sql, 0, ansiQuotes);
+            nextSetIndex =
+              setIndex === -1 ? -1 : findSetKeyword(sql, setIndex, ansiQuotes);
           }
 
           // Nearest: advance to the SET closest before this placeholder
           while (nextSetIndex !== -1 && nextSetIndex <= placeholderPosition) {
             setIndex = nextSetIndex;
-            nextSetIndex = findSetKeyword(sql, nextSetIndex);
+            nextSetIndex = findSetKeyword(sql, nextSetIndex, ansiQuotes);
           }
 
           if (
             setIndex !== -1 &&
             setIndex <= placeholderPosition &&
-            isInSetAssignmentList(sql, setIndex, placeholderPosition)
+            isInSetAssignmentList(
+              sql,
+              setIndex,
+              placeholderPosition,
+              ansiQuotes
+            )
           )
             escapedValue = objectToValues(currentValue, timezone);
           else escapedValue = escape(currentValue, true, timezone);
@@ -697,7 +763,7 @@ export const format = (
     result += escapedValue;
     chunkIndex = placeholderEnd;
     valuesIndex++;
-    placeholderPosition = findNextPlaceholder(sql, placeholderEnd);
+    placeholderPosition = findNextPlaceholder(sql, placeholderEnd, ansiQuotes);
   }
 
   if (chunkIndex === 0) return sql;
