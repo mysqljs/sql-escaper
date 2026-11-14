@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.0](https://github.com/mysqljs/sql-escaper/compare/v1.5.2...v1.6.0) (2026-11-14)
+
+
+### Features
+
+* **format:** support the `ANSI_QUOTES` SQL mode ([#69](https://github.com/mysqljs/sql-escaper/issues/69)) ([82e95ec](https://github.com/mysqljs/sql-escaper/commit/82e95eca6963c116d5bcfb6de5b1e223662a19f3))
+
 ## [1.5.2](https://github.com/mysqljs/sql-escaper/compare/v1.5.1...v1.5.2) (2026-09-14)
 
 
