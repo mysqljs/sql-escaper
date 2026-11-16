@@ -68,7 +68,7 @@ Work from the list Step 4 printed, the authoritative work list. The **tags are t
 
 **Reach a verdict on every entry on that list, one at a time, before you write any finding.** An entry marked `[required]` is always applied: when it ships a deterministic checker, you run that checker over the whole project and its output is the verdict, never a skip. For every other entry, the only question is whether the code you read in Step 5 contains the context its tags name, read off the code, not estimated from how relevant the entry feels:
 
-- **The context is present.** Apply the specialization. Read it by calling `lagune_read` with `command` set to `catalog` and `arguments` set to `["<name>"]`, and follow it, scoped to the paths in question: do what it says, do not improvise beyond it, and do not edit the user's code. The verdict is whatever its checker prints over each pattern, destination, or value the code contains, or where it ships no checker, what its reasoning concludes against the actual code. A guard the code already applies is judged here, never waved through for being present.
+- **The context is present.** Apply the specialization. Read it by calling `lagune_read` with `command` set to `catalog` and `arguments` set to `["<name>", "--phase", "detect"]`, and follow it, scoped to the paths in question: do what it says, do not improvise beyond it, and do not edit the user's code. The verdict is whatever its checker prints over each pattern, destination, or value the code contains, or where it ships no checker, what its reasoning concludes against the actual code. A guard the code already applies is judged here, never waved through for being present.
 - **The context is absent.** The code contains nothing the tags name, so there is nothing to apply. Skip it. Finding that many entries do not apply is a normal outcome.
 
 Anything a specialization surfaces is recorded as a finding through the steps below, like any other. Hold each entry's verdict for the table Step 11 emits.
@@ -128,6 +128,15 @@ Output a short summary to the user:
 
 - What changed since the last run: findings added, findings removed because they are now resolved, and findings updated.
 - Anything left under Not determined.
+- When this run created the map, unless the project's ignore files already carry them, suggest these `.gitignore` lines in the conversation to keep its open findings out of a public repository:
+
+  ```gitignore
+  /.lagune/memory/detect.md
+  /.lagune/memory/plan.md
+  /.lagune/memory/harden.md
+  /.lagune/tracking.json
+  ```
+
 - A suggested commit message, for example `docs: update detect map`.
 - **Next step:** point the user to `/lagune-plan`, the phase that turns these findings into prioritized fixes, each tied to a charter principle. Frame it as the recommended next step, and note they can rerun `/lagune-detect` (on the whole project or a narrower scope) whenever the code changes.
 
@@ -135,4 +144,4 @@ Keep the map in plain language throughout. A non-developer should understand wha
 
 ## Engine
 
-Run every `lagune <subcommand>` call from the project root through the `lagune_read` and `lagune_write` MCP tools and, only if those tools are not available, run it in the shell as `npx --yes lagune@0.18.2 read <command> <arguments>` and `npx --yes lagune@0.18.2 write <command> <arguments>` as a fallback.
+Run every `lagune <subcommand>` call from the project root through the `lagune_read` and `lagune_write` MCP tools and, only if those tools are not available, run it in the shell as `npx --yes lagune@0.20.0 read <command> <arguments>` and `npx --yes lagune@0.20.0 write <command> <arguments>` as a fallback.
