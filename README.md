@@ -20,6 +20,7 @@
 - Distinguishes when a keyword is used as a value.
 - Distinguishes when a column has a keyword name.
 - Distinguishes between multiple clauses/keywords in the same query.
+- Support for the [`NO_BACKSLASH_ESCAPES`](#sql-mode) SQL mode _(**sqlstring** only escapes correctly with it disabled)_.
 - Support from **Node.js 12** onward _(**sqlstring** supports **Node.js 0.6**)_, which allows the modern engine optimizations behind the performance gains.
 
 > [!TIP]
@@ -402,7 +403,7 @@ format('SELECT "dir\\" FROM t WHERE id = ?', [1], false, 'local', sqlMode);
 // => 'SELECT "dir\\" FROM t WHERE id = 1'
 ```
 
-When the server runs with the [`NO_BACKSLASH_ESCAPES`](https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_no_backslash_escapes) SQL mode, a backslash in a string is an ordinary character, so the default escaping lets a value end its string early. Set `noBackslashEscapes` to escape a quote by doubling it and keep every other character as it is, in `escape`, `format` and the other escaping functions. Placeholders after a string that ends in a backslash are then found too:
+When the server runs with the [`NO_BACKSLASH_ESCAPES`](https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_no_backslash_escapes) SQL mode, a backslash in a string is an ordinary character, so the default escaping lets a value end its string early. Set `noBackslashEscapes` to escape a quote by doubling it and keep every other character as it is, in `escape` and `format`. Placeholders after a string that ends in a backslash are then found too:
 
 ```js
 const sqlMode = { noBackslashEscapes: true };
@@ -416,7 +417,7 @@ format("SELECT 'C:\\' AS dir, ? AS name", ["it's"], false, 'local', sqlMode);
 
 The option must match the session's SQL mode when the server parses the statement. Set while the mode is off, it lets a value end its string early just as the default does while the mode is on. The server reports the mode in the `SERVER_STATUS_NO_BACKSLASH_ESCAPES` status flag, which can lag behind the session, for example after a stored routine that changes `sql_mode` returns.
 
-Any value other than a boolean throws a `TypeError`.
+Any value other than a boolean throws a `TypeError`, except when no values are provided to `format`.
 
 ---
 
