@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.0](https://github.com/mysqljs/sql-escaper/compare/v1.6.0...v1.7.0) (2026-11-16)
+
+
+### Features
+
+* expand an object marked in placeholders ([#74](https://github.com/mysqljs/sql-escaper/issues/74)) ([9d65f3e](https://github.com/mysqljs/sql-escaper/commit/9d65f3e584f402c35aff311c4ed173783d33107b))
+
 ## [1.6.0](https://github.com/mysqljs/sql-escaper/compare/v1.5.2...v1.6.0) (2026-11-14)
 
 
