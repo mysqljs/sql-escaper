@@ -51,6 +51,12 @@ const regex = {
   dot: /\./g,
   timezone: /([+\-\s])(\d\d):?(\d\d)?/,
   escapeChars: /[\0\b\t\n\r\x1a"'\\]/g,
+  singleQuote: /'/g,
+} as const;
+
+const sqlModeFlag = {
+  ansiQuotes: 1,
+  noBackslashEscapes: 2,
 } as const;
 
 const charCode = {
@@ -140,7 +146,7 @@ const skipLineComment = (sql: string, start: number): number => {
   return lineBreak === -1 ? sql.length : lineBreak + 1;
 };
 
-const skipQuotedIdentifier = (
+const skipQuotedWithoutEscapes = (
   sql: string,
   position: number,
   quote: number
@@ -164,7 +170,7 @@ const skipQuotedIdentifier = (
 const skipSqlContext = (
   sql: string,
   position: number,
-  ansiQuotes: boolean
+  modeFlags: number
 ): number => {
   const currentChar = sql.charCodeAt(position);
 
@@ -172,8 +178,12 @@ const skipSqlContext = (
     currentChar === charCode.singleQuote ||
     currentChar === charCode.doubleQuote
   ) {
-    if (ansiQuotes && currentChar === charCode.doubleQuote)
-      return skipQuotedIdentifier(sql, position, currentChar);
+    if (
+      (modeFlags & sqlModeFlag.noBackslashEscapes) !== 0 ||
+      ((modeFlags & sqlModeFlag.ansiQuotes) !== 0 &&
+        currentChar === charCode.doubleQuote)
+    )
+      return skipQuotedWithoutEscapes(sql, position, currentChar);
 
     const length = sql.length;
 
@@ -188,7 +198,7 @@ const skipSqlContext = (
   }
 
   if (currentChar === charCode.backtick)
-    return skipQuotedIdentifier(sql, position, currentChar);
+    return skipQuotedWithoutEscapes(sql, position, currentChar);
 
   if (currentChar === charCode.hash) return skipLineComment(sql, position + 1);
 
@@ -219,7 +229,7 @@ const skipSqlContext = (
 const findNextPlaceholder = (
   sql: string,
   start: number,
-  ansiQuotes: boolean
+  modeFlags: number
 ): number => {
   const sqlLength = sql.length;
 
@@ -228,7 +238,7 @@ const findNextPlaceholder = (
     if (code === charCode.questionMark) return position;
 
     if (code < 128 && CONTEXT_TRIGGER[code]) {
-      const contextEnd = skipSqlContext(sql, position, ansiQuotes);
+      const contextEnd = skipSqlContext(sql, position, modeFlags);
 
       if (contextEnd !== -1) position = contextEnd - 1;
     }
@@ -241,7 +251,7 @@ const isInSetAssignmentList = (
   sql: string,
   setEnd: number,
   placeholderPosition: number,
-  ansiQuotes: boolean
+  modeFlags: number
 ): boolean => {
   const length = sql.length;
   let depth = 0;
@@ -252,7 +262,7 @@ const isInSetAssignmentList = (
     const code = sql.charCodeAt(i);
 
     if (code < 128 && CONTEXT_TRIGGER[code]) {
-      const contextEnd = skipSqlContext(sql, i, ansiQuotes);
+      const contextEnd = skipSqlContext(sql, i, modeFlags);
 
       if (contextEnd !== -1) {
         i = contextEnd;
@@ -329,7 +339,7 @@ const isInSetAssignmentList = (
 const findSetKeyword = (
   sql: string,
   startFrom: number,
-  ansiQuotes: boolean
+  modeFlags: number
 ): number => {
   const length = sql.length;
 
@@ -337,7 +347,7 @@ const findSetKeyword = (
     const code = sql.charCodeAt(position);
 
     if (code < 128 && CONTEXT_TRIGGER[code]) {
-      const contextEnd = skipSqlContext(sql, position, ansiQuotes);
+      const contextEnd = skipSqlContext(sql, position, modeFlags);
 
       if (contextEnd !== -1) {
         position = contextEnd - 1;
@@ -362,7 +372,7 @@ const findSetKeyword = (
   return -1;
 };
 
-const createSetAssignmentTest = (sql: string, ansiQuotes: boolean) => {
+const createSetAssignmentTest = (sql: string, modeFlags: number) => {
   let setIndex = -2; // -2 = not yet computed, -1 = no SET found
   let nextSetIndex = -1; // -1 = no SET after setIndex
 
@@ -383,21 +393,21 @@ const createSetAssignmentTest = (sql: string, ansiQuotes: boolean) => {
 
     // Lazy: resolve the first SET and its successor once
     if (setIndex === -2) {
-      setIndex = findSetKeyword(sql, 0, ansiQuotes);
+      setIndex = findSetKeyword(sql, 0, modeFlags);
       nextSetIndex =
-        setIndex === -1 ? -1 : findSetKeyword(sql, setIndex, ansiQuotes);
+        setIndex === -1 ? -1 : findSetKeyword(sql, setIndex, modeFlags);
     }
 
     // Nearest: advance to the SET closest before this placeholder
     while (nextSetIndex !== -1 && nextSetIndex <= placeholderPosition) {
       setIndex = nextSetIndex;
-      nextSetIndex = findSetKeyword(sql, nextSetIndex, ansiQuotes);
+      nextSetIndex = findSetKeyword(sql, nextSetIndex, modeFlags);
     }
 
     return (
       setIndex !== -1 &&
       setIndex <= placeholderPosition &&
-      isInSetAssignmentList(sql, setIndex, placeholderPosition, ansiQuotes)
+      isInSetAssignmentList(sql, setIndex, placeholderPosition, modeFlags)
     );
   };
 };
@@ -496,6 +506,37 @@ const escapeString = (value: string): string => {
   return result + value.slice(chunkStart) + "'";
 };
 
+const quoteString = (value: string): string =>
+  `'${value.replace(regex.singleQuote, "''")}'`;
+
+const readNoBackslashEscapes = (sqlMode: SqlMode): boolean => {
+  if (!hasOwnProperty.call(sqlMode, 'noBackslashEscapes')) return false;
+
+  const noBackslashEscapes = sqlMode.noBackslashEscapes;
+
+  if (noBackslashEscapes === undefined) return false;
+  if (typeof noBackslashEscapes !== 'boolean')
+    throw new TypeError(
+      `sqlMode.noBackslashEscapes must be a boolean, received ${noBackslashEscapes === null ? 'null' : typeof noBackslashEscapes}`
+    );
+
+  return noBackslashEscapes;
+};
+
+const toModeFlags = (sqlMode: SqlMode | undefined): number => {
+  if (sqlMode === undefined || sqlMode === null) return 0;
+
+  return (
+    (sqlMode.ansiQuotes === true ? sqlModeFlag.ansiQuotes : 0) |
+    (readNoBackslashEscapes(sqlMode) ? sqlModeFlag.noBackslashEscapes : 0)
+  );
+};
+
+const escapeText = (value: string, modeFlags: number): string =>
+  (modeFlags & sqlModeFlag.noBackslashEscapes) === 0
+    ? escapeString(value)
+    : quoteString(value);
+
 const pad2 = (value: number): string => (value < 10 ? '0' + value : '' + value);
 
 const pad3 = (value: number): string =>
@@ -525,7 +566,11 @@ const convertTimezone = (tz: Timezone): number | false => {
   return false;
 };
 
-export const dateToString = (date: Date, timezone: Timezone): string => {
+const writeDate = (
+  date: Date,
+  timezone: Timezone,
+  modeFlags: number
+): string => {
   if (Number.isNaN(date.getTime())) return 'NULL';
 
   let year: number;
@@ -563,7 +608,7 @@ export const dateToString = (date: Date, timezone: Timezone): string => {
   }
 
   // YYYY-MM-DD HH:mm:ss.mmm
-  return escapeString(
+  return escapeText(
     pad4(year) +
       '-' +
       pad2(month) +
@@ -576,22 +621,40 @@ export const dateToString = (date: Date, timezone: Timezone): string => {
       ':' +
       pad2(second) +
       '.' +
-      pad3(millisecond)
+      pad3(millisecond),
+    modeFlags
   );
+};
+
+export const dateToString = (
+  date: Date,
+  timezone: Timezone,
+  sqlMode?: SqlMode
+): string => writeDate(date, timezone, toModeFlags(sqlMode));
+
+const writeTemporal = (
+  value: TemporalValue,
+  timezone: Timezone | undefined,
+  modeFlags: number
+): string => {
+  if (typeof value.epochMilliseconds === 'number')
+    return writeDate(
+      new Date(value.epochMilliseconds),
+      timezone || 'local',
+      modeFlags
+    );
+
+  if (value[Symbol.toStringTag] === 'Temporal.PlainDateTime')
+    return escapeText(value.toString().replace('T', ' '), modeFlags);
+
+  return escapeText(value.toString(), modeFlags);
 };
 
 export const temporalToString = (
   value: TemporalValue,
-  timezone?: Timezone
-): string => {
-  if (typeof value.epochMilliseconds === 'number')
-    return dateToString(new Date(value.epochMilliseconds), timezone || 'local');
-
-  if (value[Symbol.toStringTag] === 'Temporal.PlainDateTime')
-    return escapeString(value.toString().replace('T', ' '));
-
-  return escapeString(value.toString());
-};
+  timezone?: Timezone,
+  sqlMode?: SqlMode
+): string => writeTemporal(value, timezone, toModeFlags(sqlMode));
 
 export const escapeId = (
   value: SqlValue,
@@ -631,9 +694,10 @@ export const escapeId = (
   return `\`${quoted.replace(regex.dot, '`.`')}\``;
 };
 
-export const objectToValues = (
+const writeAssignments = (
   object: Record<string, SqlValue> | Map<string, SqlValue>,
-  timezone?: Timezone
+  timezone: Timezone | undefined,
+  modeFlags: number
 ): string => {
   let sql = '';
 
@@ -644,7 +708,7 @@ export const objectToValues = (
       if (sql.length > 0) sql += ', ';
       sql += escapeId(String(key));
       sql += ' = ';
-      sql += escapeValue(value, true, timezone, false);
+      sql += escapeValue(value, true, timezone, false, modeFlags);
     }
 
     return sql;
@@ -660,16 +724,26 @@ export const objectToValues = (
     if (sql.length > 0) sql += ', ';
     sql += escapeId(key);
     sql += ' = ';
-    sql += escapeValue(value, true, timezone, false);
+    sql += escapeValue(value, true, timezone, false, modeFlags);
   }
 
   return sql;
 };
 
+export const objectToValues = (
+  object: Record<string, SqlValue> | Map<string, SqlValue>,
+  timezone?: Timezone,
+  sqlMode?: SqlMode
+): string => writeAssignments(object, timezone, toModeFlags(sqlMode));
+
 export const bufferToString = (buffer: Buffer): string =>
   `X${escapeString(buffer.toString('hex'))}`;
 
-export const arrayToList = (array: SqlValue[], timezone?: Timezone): string => {
+const writeList = (
+  array: SqlValue[],
+  timezone: Timezone | undefined,
+  modeFlags: number
+): string => {
   const length = array.length;
   let sql = '';
 
@@ -678,20 +752,29 @@ export const arrayToList = (array: SqlValue[], timezone?: Timezone): string => {
 
     const value = array[i];
 
-    if (Array.isArray(value)) sql += `(${arrayToList(value, timezone)})`;
+    if (Array.isArray(value))
+      sql += `(${writeList(value, timezone, modeFlags)})`;
     else if (value instanceof Set)
-      sql += `(${arrayToList(Array.from(value), timezone)})`;
-    else sql += escapeValue(value, true, timezone, false);
+      sql += `(${writeList(Array.from(value), timezone, modeFlags)})`;
+    else sql += escapeValue(value, true, timezone, false, modeFlags);
   }
 
   return sql;
 };
 
+export const arrayToList = (
+  array: SqlValue[],
+  timezone?: Timezone,
+  sqlMode?: SqlMode
+): string => writeList(array, timezone, toModeFlags(sqlMode));
+
+// biome-ignore lint/complexity/useMaxParams: an options object would allocate on every escaped value
 const escapeValue = (
   value: SqlValue,
   stringifyObjects: boolean | undefined,
   timezone: Timezone | undefined,
-  topLevel: boolean
+  topLevel: boolean,
+  modeFlags: number
 ): string => {
   if (value === undefined || value === null) return 'NULL';
 
@@ -705,38 +788,45 @@ const escapeValue = (
       return value + '';
 
     case 'object': {
-      if (isDate(value)) return dateToString(value, timezone || 'local');
-      if (isTemporal(value)) return temporalToString(value, timezone);
-      if (Array.isArray(value)) return arrayToList(value, timezone);
+      if (isDate(value))
+        return writeDate(value, timezone || 'local', modeFlags);
+      if (isTemporal(value)) return writeTemporal(value, timezone, modeFlags);
+      if (Array.isArray(value)) return writeList(value, timezone, modeFlags);
       if (value instanceof Set)
-        return arrayToList(Array.from(value as Set<SqlValue>), timezone);
+        return writeList(
+          Array.from(value as Set<SqlValue>),
+          timezone,
+          modeFlags
+        );
       if (Buffer.isBuffer(value)) return bufferToString(value);
       if (value instanceof Uint8Array)
         return bufferToString(Buffer.from(value));
       if (hasSqlString(value)) return String(value.toSqlString());
       if (topLevel && isMark(value))
-        return objectToValues(value.value, timezone);
+        return writeAssignments(value.value, timezone, modeFlags);
       if (!(stringifyObjects === undefined || stringifyObjects === null))
-        return escapeString(String(value));
+        return escapeText(String(value), modeFlags);
       if (isRecord(value) || value instanceof Map)
-        return objectToValues(value, timezone);
+        return writeAssignments(value, timezone, modeFlags);
 
-      return escapeString(String(value));
+      return escapeText(String(value), modeFlags);
     }
 
     case 'string':
-      return escapeString(value);
+      return escapeText(value, modeFlags);
 
     default:
-      return escapeString(String(value));
+      return escapeText(String(value), modeFlags);
   }
 };
 
 export const escape = (
   value: SqlValue,
   stringifyObjects?: boolean,
-  timezone?: Timezone
-): string => escapeValue(value, stringifyObjects, timezone, true);
+  timezone?: Timezone,
+  sqlMode?: SqlMode
+): string =>
+  escapeValue(value, stringifyObjects, timezone, true, toModeFlags(sqlMode));
 
 // biome-ignore lint/complexity/useMaxParams: the first four parameters keep sqlstring's positional API
 export const format = (
@@ -748,8 +838,7 @@ export const format = (
 ): string => {
   if (values === undefined || values === null) return sql;
 
-  const ansiQuotes =
-    sqlMode !== undefined && sqlMode !== null && sqlMode.ansiQuotes === true;
+  const modeFlags = toModeFlags(sqlMode);
   const valuesArray: SqlValue[] = Array.isArray(values) ? values : [values];
   const length = valuesArray.length;
 
@@ -757,7 +846,7 @@ export const format = (
   let result = '';
   let chunkIndex = 0;
   let valuesIndex = 0;
-  let placeholderPosition = findNextPlaceholder(sql, 0, ansiQuotes);
+  let placeholderPosition = findNextPlaceholder(sql, 0, modeFlags);
 
   while (valuesIndex < length && placeholderPosition !== -1) {
     // Count consecutive question marks to detect ? vs ?? vs ???+
@@ -770,11 +859,7 @@ export const format = (
     const currentValue = valuesArray[valuesIndex];
 
     if (placeholderLength > 2) {
-      placeholderPosition = findNextPlaceholder(
-        sql,
-        placeholderEnd,
-        ansiQuotes
-      );
+      placeholderPosition = findNextPlaceholder(sql, placeholderEnd, modeFlags);
       continue;
     }
 
@@ -790,30 +875,48 @@ export const format = (
       !stringifyObjects
     ) {
       if (!isExpandable(currentValue))
-        escapedValue = escapeValue(currentValue, true, timezone, false);
+        escapedValue = escapeValue(
+          currentValue,
+          true,
+          timezone,
+          false,
+          modeFlags
+        );
       else if (isMark(currentValue))
-        escapedValue = objectToValues(currentValue.value, timezone);
+        escapedValue = writeAssignments(
+          currentValue.value,
+          timezone,
+          modeFlags
+        );
       else {
         if (isSetAssignment === undefined)
-          isSetAssignment = createSetAssignmentTest(sql, ansiQuotes);
+          isSetAssignment = createSetAssignmentTest(sql, modeFlags);
 
         if (isSetAssignment(chunkIndex, placeholderPosition))
-          escapedValue = objectToValues(currentValue, timezone);
-        else escapedValue = escapeValue(currentValue, true, timezone, false);
+          escapedValue = writeAssignments(currentValue, timezone, modeFlags);
+        else
+          escapedValue = escapeValue(
+            currentValue,
+            true,
+            timezone,
+            false,
+            modeFlags
+          );
       }
     } else
       escapedValue = escapeValue(
         currentValue,
         stringifyObjects,
         timezone,
-        true
+        true,
+        modeFlags
       );
 
     result += sql.slice(chunkIndex, placeholderPosition);
     result += escapedValue;
     chunkIndex = placeholderEnd;
     valuesIndex++;
-    placeholderPosition = findNextPlaceholder(sql, placeholderEnd, ansiQuotes);
+    placeholderPosition = findNextPlaceholder(sql, placeholderEnd, modeFlags);
   }
 
   if (chunkIndex === 0) return sql;

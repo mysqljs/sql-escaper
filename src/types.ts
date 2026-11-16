@@ -39,4 +39,6 @@ export type Timezone = 'local' | 'Z' | (string & NonNullable<unknown>);
 export type SqlMode = {
   /** The server runs with the `ANSI_QUOTES` SQL mode: double quotes delimit identifiers, not strings. */
   ansiQuotes?: boolean;
+  /** The server runs with the `NO_BACKSLASH_ESCAPES` SQL mode: a backslash in a string is an ordinary character, and a quote is escaped by doubling it. */
+  noBackslashEscapes?: boolean;
 };

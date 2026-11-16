@@ -121,7 +121,7 @@ const { escape, escapeId, expand, format, raw } = require('sql-escaper');
 Escapes a value for safe use in SQL queries.
 
 ```ts
-escape(value: SqlValue, stringifyObjects?: boolean, timezone?: Timezone): string
+escape(value: SqlValue, stringifyObjects?: boolean, timezone?: Timezone, sqlMode?: SqlMode): string
 ```
 
 ```js
@@ -402,6 +402,22 @@ format('SELECT "dir\\" FROM t WHERE id = ?', [1], false, 'local', sqlMode);
 // => 'SELECT "dir\\" FROM t WHERE id = 1'
 ```
 
+When the server runs with the [`NO_BACKSLASH_ESCAPES`](https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_no_backslash_escapes) SQL mode, a backslash in a string is an ordinary character, so the default escaping lets a value end its string early. Set `noBackslashEscapes` to escape a quote by doubling it and keep every other character as it is, in `escape`, `format` and the other escaping functions. Placeholders after a string that ends in a backslash are then found too:
+
+```js
+const sqlMode = { noBackslashEscapes: true };
+
+escape("it's C:\\", false, 'local', sqlMode);
+// => "'it''s C:\\'"
+
+format("SELECT 'C:\\' AS dir, ? AS name", ["it's"], false, 'local', sqlMode);
+// => "SELECT 'C:\\' AS dir, 'it''s' AS name"
+```
+
+The option must match the session's SQL mode when the server parses the statement. Set while the mode is off, it lets a value end its string early just as the default does while the mode is on. The server reports the mode in the `SERVER_STATUS_NO_BACKSLASH_ESCAPES` status flag, which can lag behind the session, for example after a stored routine that changes `sql_mode` returns.
+
+Any value other than a boolean throws a `TypeError`.
+
 ---
 
 ### raw
@@ -523,7 +539,7 @@ Each benchmark formats `10,000` queries using `format` with `100` values, compar
 
 > Based on the original [**sqlstring** documentation](https://github.com/mysqljs/sqlstring#readme).
 
-- The escaping methods in this library only work when the [`NO_BACKSLASH_ESCAPES`](https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_no_backslash_escapes) SQL mode is disabled (which is the default state for **MySQL** servers).
+- The escaping methods in this library only work when the [`NO_BACKSLASH_ESCAPES`](https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_no_backslash_escapes) SQL mode is disabled (which is the default state for **MySQL** servers), unless `noBackslashEscapes` is set in the [SQL mode](#sql-mode) argument.
 - This library performs **client-side escaping** to generate SQL strings. The syntax for `format` may look similar to a prepared statement, but it is not one.
 - When using `format`, placeholders inside strings (`'...'` and `"..."`), backtick identifiers, and comments (`#`, `/* */`, and `--` followed by whitespace) are left as they are. Executable comments (`/*! */`) and optimizer hints (`/*+ */`) are read as SQL, so their placeholders are replaced.
 - When structured user input is provided as the value to escape, validate the shape of the input, as the resulting escaped string may contain more than a single value.
