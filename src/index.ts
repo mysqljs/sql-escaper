@@ -51,7 +51,6 @@ const regex = {
   dot: /\./g,
   timezone: /([+\-\s])(\d\d):?(\d\d)?/,
   escapeChars: /[\0\b\t\n\r\x1a"'\\]/g,
-  singleQuote: /'/g,
 } as const;
 
 const sqlModeFlag = {
@@ -506,8 +505,22 @@ const escapeString = (value: string): string => {
   return result + value.slice(chunkStart) + "'";
 };
 
-const quoteString = (value: string): string =>
-  `'${value.replace(regex.singleQuote, "''")}'`;
+const quoteString = (value: string): string => {
+  let quotePosition = value.indexOf("'");
+
+  if (quotePosition === -1) return `'${value}'`;
+
+  let result = "'";
+  let chunkStart = 0;
+
+  while (quotePosition !== -1) {
+    result += value.slice(chunkStart, quotePosition + 1) + "'";
+    chunkStart = quotePosition + 1;
+    quotePosition = value.indexOf("'", chunkStart);
+  }
+
+  return result + value.slice(chunkStart) + "'";
+};
 
 const readNoBackslashEscapes = (sqlMode: SqlMode): boolean => {
   if (!hasOwnProperty.call(sqlMode, 'noBackslashEscapes')) return false;

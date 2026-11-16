@@ -27,6 +27,10 @@ Don't cause a regression: every input, security vectors included, must come out 
 - **Integer sentinels and numeric range tests:** encode absent or not-yet-computed state as reserved integers instead of null or a boxed option, and test character ranges with plain numeric comparisons.
 - **Manual padding over general calls:** pad fixed-width numbers by magnitude with branches and concatenation instead of a general-purpose padding call.
 
+### Intentional choices
+
+- **The SQL mode flags are read differently on purpose:** `ansiQuotes` keeps its original lenient read, where an inherited property counts and any value other than `true` turns it off. `noBackslashEscapes` is read strictly, where only an own property counts and any value other than a boolean or `undefined` throws a `TypeError`, since a misread flag escapes strings for the wrong mode.
+
 ### Tests
 
 - `npm run test:node`

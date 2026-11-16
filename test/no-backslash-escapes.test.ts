@@ -5,6 +5,7 @@ import {
   arrayToList,
   dateToString,
   escape,
+  expand,
   format,
   objectToValues,
   raw,
@@ -16,6 +17,11 @@ const noBackslashEscapes: SqlMode = { noBackslashEscapes: true };
 const hostileTemporal: TemporalValue = {
   [Symbol.toStringTag]: 'Temporal.PlainDate',
   toString: () => "x\\' OR 1=1 -- ",
+};
+
+const hostilePlainDateTime: TemporalValue = {
+  [Symbol.toStringTag]: 'Temporal.PlainDateTime',
+  toString: () => "2024-01-01T00:00:00' OR 1=1 -- ",
 };
 
 const formatUnderNoBackslashEscapes = (sql: string, values: SqlValue[]) =>
@@ -93,6 +99,24 @@ describe('No backslash escapes: nested values escape by the same rules', () => {
       values: [new Map([['name', "it's"]])],
       expected: "UPDATE t SET `name` = 'it''s'",
     },
+    {
+      name: 'a Set inside an array',
+      sql: 'INSERT INTO t (a) VALUES ?',
+      values: [[new Set(["it's"])]],
+      expected: "INSERT INTO t (a) VALUES ('it''s')",
+    },
+    {
+      name: 'a marked object',
+      sql: 'SELECT * FROM t WHERE ?',
+      values: [expand({ name: "it's" })],
+      expected: "SELECT * FROM t WHERE `name` = 'it''s'",
+    },
+    {
+      name: 'an object outside a SET clause',
+      sql: 'SELECT * FROM t WHERE name = ?',
+      values: [{ toString: () => "it's" }],
+      expected: "SELECT * FROM t WHERE name = 'it''s'",
+    },
   ];
 
   for (const { name, sql, values, expected } of placements)
@@ -111,6 +135,17 @@ describe('No backslash escapes: nested values escape by the same rules', () => {
   it('should double the quotes in objectToValues()', () => {
     const actual = objectToValues(
       { name: "it's" },
+      'local',
+      noBackslashEscapes
+    );
+
+    assert.strictEqual(actual, "`name` = 'it''s'");
+  });
+
+  it('should double the quotes in an object expanded by escape()', () => {
+    const actual = escape(
+      { name: "it's" },
+      undefined,
       'local',
       noBackslashEscapes
     );
@@ -149,6 +184,32 @@ describe('No backslash escapes: a string ends at its first unpaired quote', () =
       sql: "SELECT 'a\\''?' FROM t WHERE id = ? AND owner = ?",
       expected: "SELECT 'a\\''?' FROM t WHERE id = 7 AND owner = 'bob'",
     },
+    {
+      name: 'a string that ends in a backslash between two placeholders',
+      sql: "SELECT * FROM t WHERE id = ? AND path = 'C:\\' AND owner = ?",
+      expected:
+        "SELECT * FROM t WHERE id = 7 AND path = 'C:\\' AND owner = 'bob'",
+    },
+    {
+      name: 'a string that ends in a backslash after an ignored ???',
+      sql: "SELECT ??? FROM t WHERE path = 'C:\\' AND id = ? AND owner = ?",
+      expected:
+        "SELECT ??? FROM t WHERE path = 'C:\\' AND id = 7 AND owner = 'bob'",
+    },
+  ];
+  const setWordsInStrings = [
+    {
+      name: 'the first statement',
+      sql: "UPDATE t SET path = 'C:\\' WHERE tag IN ('SET #'\n, ?)",
+      expected:
+        "UPDATE t SET path = 'C:\\' WHERE tag IN ('SET #'\n, '[object Object]')",
+    },
+    {
+      name: 'a later statement',
+      sql: "UPDATE t SET a = 1; UPDATE u SET path = 'C:\\' WHERE tag IN ('SET #'\n, ?)",
+      expected:
+        "UPDATE t SET a = 1; UPDATE u SET path = 'C:\\' WHERE tag IN ('SET #'\n, '[object Object]')",
+    },
   ];
 
   for (const { name, sql, expected } of literals)
@@ -165,6 +226,13 @@ describe('No backslash escapes: a string ends at its first unpaired quote', () =
 
     assert.strictEqual(actual, "UPDATE t SET a = 'C:\\', `b` = 2");
   });
+
+  for (const { name, sql, expected } of setWordsInStrings)
+    it(`should keep an object inert after a SET inside a string in ${name}`, () => {
+      const actual = formatUnderNoBackslashEscapes(sql, [{ admin: true }]);
+
+      assert.strictEqual(actual, expected);
+    });
 
   it('should leave a placeholder inside an unterminated string', () => {
     const actual = formatUnderNoBackslashEscapes("SELECT 'C:\\ ?", [1]);
@@ -205,6 +273,16 @@ describe('No backslash escapes: every kind of value', () => {
       expected: "'x\\'' OR 1=1 -- '",
     },
     { name: 'a raw value', value: raw("'a\\'"), expected: "'a\\'" },
+    {
+      name: 'a value tagged as Temporal.PlainDateTime',
+      value: hostilePlainDateTime,
+      expected: "'2024-01-01 00:00:00'' OR 1=1 -- '",
+    },
+    {
+      name: 'a marked object',
+      value: expand({ name: "it's" }),
+      expected: "`name` = 'it''s'",
+    },
   ];
 
   for (const { name, value, expected } of kinds)
@@ -220,6 +298,16 @@ describe('No backslash escapes: every kind of value', () => {
 
     assert.strictEqual(date, "'1970-01-01 00:00:00.000'");
     assert.strictEqual(temporal, "'x\\'' OR 1=1 -- '");
+  });
+
+  it('should double the quotes in a value of an unrecognized type', () => {
+    const values: SqlValue[] = [];
+
+    Reflect.set(values, 0, Symbol("it's"));
+
+    const actual = formatUnderNoBackslashEscapes('SELECT ?', values);
+
+    assert.strictEqual(actual, "SELECT 'Symbol(it''s)'");
   });
 
   it('should escape an identifier placeholder after a string that ends in a backslash', () => {
