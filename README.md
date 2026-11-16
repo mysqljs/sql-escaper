@@ -247,7 +247,7 @@ escape({ a: 'b', c: () => {} });
 
 > [!TIP]
 >
-> Instead, `format` only expands an object where it is safe (e.g., a `SET` assignment) or marked with [`expand`](#expand), and stringifies it everywhere else, so the same input cannot reshape the query:
+> Instead, `format` only expands an object where it is safe (e.g., a `SET` assignment) or marked with [**`expand`**](#expand), and stringifies it everywhere else, so the same input cannot reshape the query:
 >
 > ```js
 > const userInput = { id: true }; // e.g. JSON.parse('{"id":true}')
@@ -489,7 +489,7 @@ expand([{ id: 1 }]); // throws TypeError
 expand(raw('NOW()')); // throws TypeError
 ```
 
-The mark is the symbol registered as `sql-escaper.expand`, so a value marked by one copy of **SQL Escaper** (for example, your own dependency) expands in another (for example, the one **MySQL2** uses).
+- The mark is the symbol registered as `sql-escaper.expand`, so a value marked by one copy of **SQL Escaper** (for example, your own dependency) expands in another (for example, the one **MySQL2** uses).
 
 > [!WARNING]
 >
