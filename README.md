@@ -24,13 +24,13 @@
 
 > [!TIP]
 >
-> **SQL Escaper** has the same API as the original [**sqlstring**](https://github.com/mysqljs/sqlstring), so it can be used as a drop-in replacement. If **SQL Escaper** breaks any **API** usage compared to **sqlstring**, please, report it as a bug. [Pull Requests are welcome](./CONTRIBUTING.md).
+> **SQL Escaper** has the same API as the original [**sqlstring**](https://github.com/mysqljs/sqlstring) <sup>1</sup>, so it can be used as a drop-in replacement. If **SQL Escaper** breaks any **API** usage compared to **sqlstring**, please, report it as a bug.
 
 > [!IMPORTANT]
 >
 > 🔐 **SQL Escaper** is intended to fix a potential [**SQL Injection vulnerability**](https://flattsecurity.medium.com/finding-an-unseen-sql-injection-by-bypassing-escape-functions-in-mysqljs-mysql-90b27f6542b4) reported in 2022. By combining the original [**sqlstring**](https://github.com/mysqljs/sqlstring) with [**mysqljs/mysql**](https://github.com/mysqljs/mysql) or [**MySQL2**](https://github.com/sidorares/node-mysql2), objects passed as values could be expanded into **SQL** fragments, potentially allowing attackers to manipulate query structure. See [sidorares/node-mysql2#4051](https://github.com/sidorares/node-mysql2/issues/4051) for details.
 >
-> Regardless of the `stringifyObjects` value, objects used outside of `SET` or `ON DUPLICATE KEY UPDATE` contexts are stringified as `'[object Object]'` unless you mark them with [`expand`](#expand). This is a security measure to prevent [SQL Injection](https://flattsecurity.medium.com/finding-an-unseen-sql-injection-by-bypassing-escape-functions-in-mysqljs-mysql-90b27f6542b4) and is not interpreted as a breaking change for **sqlstring** usage.
+> <sup>1</sup> Regardless of the `stringifyObjects` value, objects used outside of `SET` or `ON DUPLICATE KEY UPDATE` contexts are stringified as `'[object Object]'` unless you mark them with [**`expand`**](#expand). This is a security measure to prevent [**SQL Injection**](https://flattsecurity.medium.com/finding-an-unseen-sql-injection-by-bypassing-escape-functions-in-mysqljs-mysql-90b27f6542b4) and is not interpreted as a breaking change for **sqlstring** usage.
 
 ---
 
@@ -454,8 +454,14 @@ expand(value: Record<string, unknown> | Map<string, SqlValue>): Expand
 ```
 
 ```js
-format('SELECT * FROM users WHERE ?', [expand({ id: 1 })]);
-// => 'SELECT * FROM users WHERE `id` = 1'
+format('SELECT ?? FROM ?? WHERE ? AND status IN (?) LIMIT ?', [
+  ['id', 'name'],
+  'users',
+  expand({ role: 'admin' }),
+  ['active', 'pending'],
+  10,
+]);
+// => "SELECT `id`, `name` FROM `users` WHERE `role` = 'admin' AND status IN ('active', 'pending') LIMIT 10"
 
 format(
   'UPDATE users SET ? WHERE id = ?',
