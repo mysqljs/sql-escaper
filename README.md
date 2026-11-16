@@ -16,7 +16,7 @@
 - **TypeScript** by default.
 - Support for `Uint8Array`, `BigInt`, and `Temporal`.
 - Support for both **CJS** and **ESM** exports.
-- Up to [**~40% faster**](#performance) compared to **sqlstring**.
+- Up to [**~44% faster**](#performance) compared to **sqlstring**.
 - Distinguishes when a keyword is used as value.
 - Distinguishes when a column has a keyword name.
 - Distinguishes between multiple clauses/keywords in the same query.
@@ -507,15 +507,15 @@ Each benchmark formats `10,000` queries using `format` with `100` values, compar
 
 |   # | Benchmark                                | sqlstring | SQL Escaper |       Difference |
 | --: | ---------------------------------------- | --------: | ----------: | ---------------: |
-|   1 | Select 100 values                        |  249.0 ms |    177.8 ms | **1.40x faster** |
-|   2 | Insert 100 values                        |  247.7 ms |    185.3 ms | **1.34x faster** |
-|   3 | Insert 100 strings requiring escape      |  436.9 ms |    257.5 ms | **1.70x faster** |
-|   4 | Insert 100 dates                         |  611.9 ms |    415.1 ms | **1.47x faster** |
-|   5 | SET with 100 values                      |  258.8 ms |    207.4 ms | **1.25x faster** |
-|   6 | SET with 100 objects                     |  344.8 ms |    241.0 ms | **1.43x faster** |
-|   7 | ON DUPLICATE KEY UPDATE with 100 values  |  462.0 ms |    362.7 ms | **1.27x faster** |
-|   8 | ON DUPLICATE KEY UPDATE with 100 objects |  559.4 ms |    437.8 ms | **1.28x faster** |
-|   9 | Multi-statement SET with 100 objects     |  348.7 ms |    243.4 ms | **1.43x faster** |
+|   1 | Select 100 values                        |  173.0 ms |    122.0 ms | **1.42x faster** |
+|   2 | Insert 100 values                        |  173.4 ms |    126.5 ms | **1.37x faster** |
+|   3 | Insert 100 strings requiring escape      |  331.5 ms |    185.1 ms | **1.79x faster** |
+|   4 | Insert 100 dates                         |  376.5 ms |    264.0 ms | **1.43x faster** |
+|   5 | SET with 100 values                      |  178.7 ms |    140.8 ms | **1.27x faster** |
+|   6 | SET with 100 objects                     |  238.4 ms |    158.7 ms | **1.50x faster** |
+|   7 | ON DUPLICATE KEY UPDATE with 100 values  |  315.4 ms |    235.6 ms | **1.34x faster** |
+|   8 | ON DUPLICATE KEY UPDATE with 100 objects |  369.5 ms |    282.9 ms | **1.31x faster** |
+|   9 | Multi-statement SET with 100 objects     |  244.3 ms |    162.2 ms | **1.51x faster** |
 
 - See detailed results and how the benchmarks are run in the [**benchmark**](https://github.com/mysqljs/sql-escaper/tree/main/benchmark) directory.
 
