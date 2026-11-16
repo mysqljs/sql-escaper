@@ -9,28 +9,28 @@
 
 ## Motivation
 
-**SQL Escaper** is a rework of [**sqlstring**](https://github.com/mysqljs/sqlstring) (created by [**Douglas Wilson**](https://github.com/dougwilson)), by using an **AST**-based approach to parse and format SQL queries while maintaining its same API.
+**SQL Escaper** is a rework of [**sqlstring**](https://github.com/mysqljs/sqlstring) (created by [**Douglas Wilson**](https://github.com/dougwilson)) that reads the structure of each query to decide how its values are formatted.
 
 ### Rework includes:
 
 - **TypeScript** by default.
 - Support for `Uint8Array`, `BigInt`, and `Temporal`.
 - Support for both **CJS** and **ESM** exports.
-- Up to [**~44% faster**](#performance) compared to **sqlstring**.
-- Distinguishes when a keyword is used as value.
+- Up to [**~44% faster**](#performance) than **sqlstring**.
+- Distinguishes when a keyword is used as a value.
 - Distinguishes when a column has a keyword name.
 - Distinguishes between multiple clauses/keywords in the same query.
-- Reasonable conservative support for **Node.js v12** _(**sqlstring** supports **Node.js v0.6**)_.
+- Support from **Node.js 12** onward _(**sqlstring** supports **Node.js 0.6**)_, which allows the modern engine optimizations behind the performance gains.
 
 > [!TIP]
 >
-> **SQL Escaper** has the same API as the original [**sqlstring**](https://github.com/mysqljs/sqlstring) <sup>1</sup>, so it can be used as a drop-in replacement. If **SQL Escaper** breaks any **API** usage compared to **sqlstring**, please, report it as a bug.
+> **SQL Escaper** has the same API as the original [**sqlstring**](https://github.com/mysqljs/sqlstring) <sup>1</sup>, so it can be used as a drop-in replacement. If it breaks any **sqlstring** usage, please report it as a bug.
 
 > [!IMPORTANT]
 >
-> 🔐 **SQL Escaper** is intended to fix a potential [**SQL Injection vulnerability**](https://flattsecurity.medium.com/finding-an-unseen-sql-injection-by-bypassing-escape-functions-in-mysqljs-mysql-90b27f6542b4) reported in 2022. By combining the original [**sqlstring**](https://github.com/mysqljs/sqlstring) with [**mysqljs/mysql**](https://github.com/mysqljs/mysql) or [**MySQL2**](https://github.com/sidorares/node-mysql2), objects passed as values could be expanded into **SQL** fragments, potentially allowing attackers to manipulate query structure. See [sidorares/node-mysql2#4051](https://github.com/sidorares/node-mysql2/issues/4051) for details.
+> 🔐 **SQL Escaper** is intended to fix a potential [**SQL Injection vulnerability**](https://flattsecurity.medium.com/finding-an-unseen-sql-injection-by-bypassing-escape-functions-in-mysqljs-mysql-90b27f6542b4) reported in 2022. When the original [**sqlstring**](https://github.com/mysqljs/sqlstring) is combined with [**mysqljs/mysql**](https://github.com/mysqljs/mysql) or [**MySQL2**](https://github.com/sidorares/node-mysql2), objects passed as values can be expanded into SQL fragments, potentially allowing attackers to manipulate the query structure. See [sidorares/node-mysql2#4051](https://github.com/sidorares/node-mysql2/issues/4051) for details.
 >
-> <sup>1</sup> Regardless of the `stringifyObjects` value, objects used outside of `SET` or `ON DUPLICATE KEY UPDATE` contexts are stringified as `'[object Object]'` unless you mark them with [**`expand`**](#expand). This is a security measure to prevent [**SQL Injection**](https://flattsecurity.medium.com/finding-an-unseen-sql-injection-by-bypassing-escape-functions-in-mysqljs-mysql-90b27f6542b4) and is not interpreted as a breaking change for **sqlstring** usage.
+> <sup>1</sup> Regardless of the `stringifyObjects` value, objects used outside of `SET` or `ON DUPLICATE KEY UPDATE` contexts are stringified as `'[object Object]'` unless you mark them with [**`expand`**](#expand). This is a security measure against that vulnerability and is not considered a breaking change for **sqlstring** usage.
 
 ---
 
@@ -55,7 +55,7 @@ deno add npm:sql-escaper
 
 ### [MySQL2](https://github.com/sidorares/node-mysql2)
 
-For **MySQL2**, it already uses **SQL Escaper** as its default escaping library since version `3.17.0`, so you just need to update it to the latest version:
+**MySQL2** uses **SQL Escaper** as its default escaping library since version `3.17.0`, so you only need to update it to the latest version:
 
 ```bash
 npm i mysql2@latest
@@ -63,7 +63,7 @@ npm i mysql2@latest
 
 ### [mysqljs/mysql](https://github.com/mysqljs/mysql)
 
-You can use an overrides in your _package.json_:
+You can use an override in your _package.json_:
 
 ```json
 "dependencies": {
@@ -74,8 +74,7 @@ You can use an overrides in your _package.json_:
 }
 ```
 
-- Next, clean the `node_modules` and reinstall the dependencies (`npm i`).
-- Please, note the minimum supported version of **Node.js** is `12`.
+Next, clean the `node_modules` and reinstall the dependencies (`npm i`).
 
 ---
 
@@ -107,15 +106,7 @@ escape(raw('NOW()'), true);
 // => 'NOW()'
 ```
 
-### Import
-
-#### ES Modules
-
-```js
-import { escape, escapeId, expand, format, raw } from 'sql-escaper';
-```
-
-#### CommonJS
+With **CommonJS**, load the same functions with `require`:
 
 ```js
 const { escape, escapeId, expand, format, raw } = require('sql-escaper');
@@ -169,9 +160,7 @@ escape(date, true, '-05:00'); // "'2012-05-07 06:42:03.002'"
 
 #### Temporal
 
-[Temporal](https://tc39.es/proposal-temporal/) values are supported too.
-`Temporal.Instant` and `Temporal.ZonedDateTime` are absolute points in time and
-honor the `timezone` argument exactly like `Date` (millisecond precision):
+Among [Temporal](https://tc39.es/proposal-temporal/) values, `Temporal.Instant` and `Temporal.ZonedDateTime` are absolute points in time and honor the `timezone` argument exactly like `Date`, with millisecond precision:
 
 ```js
 const instant = Temporal.Instant.from('2012-05-07T11:42:03.002Z');
@@ -180,9 +169,7 @@ escape(instant, true, 'Z'); // "'2012-05-07 11:42:03.002'"
 escape(instant, true, '+0200'); // "'2012-05-07 13:42:03.002'"
 ```
 
-`Temporal.PlainDateTime`, `Temporal.PlainDate` and `Temporal.PlainTime` are
-wall-clock values and are emitted verbatim as `DATETIME` / `DATE` / `TIME`
-literals, ignoring `timezone`:
+`Temporal.PlainDateTime`, `Temporal.PlainDate`, and `Temporal.PlainTime` are wall-clock values and are emitted verbatim as `DATETIME` / `DATE` / `TIME` literals, ignoring `timezone`:
 
 ```js
 escape(Temporal.PlainDate.from('2012-05-07')); // "'2012-05-07'"
@@ -200,7 +187,7 @@ escape(Buffer.from([0, 1, 254, 255]), true);
 
 #### Objects
 
-When `stringifyObjects` is set to a non-nullish value **(recommended)**, objects are stringified instead of being expanded into key-value pairs, unless marked with [`expand`](#expand):
+When `stringifyObjects` is set to a non-nullish value **(recommended)**, objects are stringified instead of being expanded into `key = value` pairs, unless marked with [`expand`](#expand):
 
 ```js
 escape({ a: 'b' }, true);
@@ -214,7 +201,7 @@ escape({ toSqlString: () => 'NOW()' }, true);
 // => 'NOW()'
 ```
 
-Plain objects are converted to `key = value` pairs **(discouraged)**:
+Without `stringifyObjects`, plain objects are converted to `key = value` pairs **(discouraged)**:
 
 ```js
 escape({ a: 'b', c: 'd' });
@@ -230,7 +217,7 @@ escape({ a: 'b', c: () => {} });
 
 > [!CAUTION]
 >
-> Without `stringifyObjects`, plain objects are converted to `key = value` pairs, so an object reaching `escape` where a value is expected reshapes the query, for example:
+> Without `stringifyObjects`, an object reaching `escape` where a value is expected reshapes the query:
 >
 > ```js
 > const userInput = { id: true }; // e.g. JSON.parse('{"id":true}')
@@ -247,7 +234,7 @@ escape({ a: 'b', c: () => {} });
 
 > [!TIP]
 >
-> Instead, `format` only expands an object where it is safe (e.g., a `SET` assignment) or marked with [`expand`](#expand), and stringifies it everywhere else, so the same input cannot reshape the query:
+> Instead, `format` expands an object only where it is safe (e.g., a `SET` assignment) or marked with [**`expand`**](#expand), and stringifies it everywhere else, so the same input cannot reshape the query:
 >
 > ```js
 > const userInput = { id: true }; // e.g. JSON.parse('{"id":true}')
@@ -287,7 +274,7 @@ escape(
 
 #### Sets
 
-Sets are treated like arrays, turning into comma-separated lists with natural deduplication:
+Sets are treated like arrays:
 
 ```js
 escape(new Set([1, 2, 3]), true);
@@ -363,7 +350,7 @@ format('SELECT ??');
 
 #### Objects in SET clauses
 
-When `stringifyObjects` is falsy, objects used in `SET` or `ON DUPLICATE KEY UPDATE` contexts are automatically expanded into `key = value` pairs:
+When `stringifyObjects` is falsy, objects used in `SET` or `ON DUPLICATE KEY UPDATE` contexts are expanded into `key = value` pairs:
 
 ```js
 format('UPDATE users SET ?', [{ name: 'foo', email: 'bar@test.com' }]);
@@ -385,7 +372,7 @@ format('UPDATE users SET ?', [{ name: 'foo' }], true);
 
 #### Maps in SET clauses
 
-Maps are treated like plain objects, preserving insertion order. In `SET` or `ON DUPLICATE KEY UPDATE` contexts, they are expanded into `key = value` pairs:
+Maps are treated like plain objects, preserving insertion order:
 
 ```js
 format('UPDATE users SET ?', [
@@ -397,7 +384,7 @@ format('UPDATE users SET ?', [
 // => "UPDATE users SET `name` = 'foo', `email` = 'bar@test.com'"
 ```
 
-Outside of `SET` or `ON DUPLICATE KEY UPDATE`, a `Map` follows the same security measure applied to objects, so it is stringified as `'[object Map]'` unless marked with [`expand`](#expand):
+Outside of `SET` or `ON DUPLICATE KEY UPDATE`, a `Map` is stringified as `'[object Map]'` unless marked with [`expand`](#expand):
 
 ```js
 format('SELECT * FROM users WHERE data = ?', [new Map([['id', 1]])]);
@@ -406,7 +393,7 @@ format('SELECT * FROM users WHERE data = ?', [new Map([['id', 1]])]);
 
 #### SQL mode
 
-When the server runs with the [`ANSI_QUOTES`](https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_ansi_quotes) SQL mode, set `ansiQuotes` so double-quoted text is read as an identifier, where a backslash is an ordinary character:
+By default, double-quoted text is read as a string, where a backslash escapes the next character. When the server runs with the [`ANSI_QUOTES`](https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_ansi_quotes) SQL mode, that reading can skip or misplace the placeholders after a double-quoted identifier that ends in a backslash, so set `ansiQuotes` to have double-quoted text read as an identifier, where a backslash is an ordinary character:
 
 ```js
 const sqlMode = { ansiQuotes: true };
@@ -447,7 +434,7 @@ raw(42); // throws TypeError
 
 ### expand
 
-Marks an object or a `Map` to be expanded into `key = value` pairs wherever it is bound, in any position of the statement and regardless of the `stringifyObjects` value.
+Marks an object or a `Map` to be expanded into `key = value` pairs in any position of the statement, regardless of the `stringifyObjects` value.
 
 ```ts
 expand(value: Record<string, unknown> | Map<string, SqlValue>): Expand
@@ -489,7 +476,7 @@ expand([{ id: 1 }]); // throws TypeError
 expand(raw('NOW()')); // throws TypeError
 ```
 
-The mark is the symbol registered as `sql-escaper.expand`, so a value marked by one copy of **SQL Escaper** (for example, your own dependency) expands in another (for example, the one **MySQL2** uses).
+- The mark is the symbol registered as `sql-escaper.expand`, so a value marked by one copy of **SQL Escaper** (for example, your own dependency) expands in another (for example, the one **MySQL2** uses).
 
 > [!WARNING]
 >
@@ -523,7 +510,7 @@ Each benchmark formats `10,000` queries using `format` with `100` values, compar
 |   8 | ON DUPLICATE KEY UPDATE with 100 objects |  369.5 ms |    282.9 ms | **1.31x faster** |
 |   9 | Multi-statement SET with 100 objects     |  244.3 ms |    162.2 ms | **1.51x faster** |
 
-- See detailed results and how the benchmarks are run in the [**benchmark**](https://github.com/mysqljs/sql-escaper/tree/main/benchmark) directory.
+- See how the benchmarks are run in the [**benchmark**](https://github.com/mysqljs/sql-escaper/tree/main/benchmark) directory.
 
 > [!NOTE]
 >
@@ -532,26 +519,15 @@ Each benchmark formats `10,000` queries using `format` with `100` values, compar
 
 ---
 
-## Differences from sqlstring
-
-- Requires **Node.js 12+** (the original [**sqlstring**](https://github.com/mysqljs/sqlstring) supports **Node.js** 0.6+)
-
-> [!TIP]
->
-> The Node.js 12+ requirement is what allows **SQL Escaper** to leverage modern engine optimizations and achieve the [performance gains](#performance) over the original.
-
----
-
 ## Caution
 
 > Based on the original [**sqlstring** documentation](https://github.com/mysqljs/sqlstring#readme).
 
-- The escaping methods in this library only work when the [`NO_BACKSLASH_ESCAPES`](https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_no_backslash_escapes) SQL mode is disabled (which is the default state for MySQL servers).
-- This library performs **client-side escaping** to generate SQL strings. The syntax for `format` may look similar to a prepared statement, but it is not — the escaping rules from this module are used to produce the resulting SQL string.
+- The escaping methods in this library only work when the [`NO_BACKSLASH_ESCAPES`](https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_no_backslash_escapes) SQL mode is disabled (which is the default state for **MySQL** servers).
+- This library performs **client-side escaping** to generate SQL strings. The syntax for `format` may look similar to a prepared statement, but it is not one.
 - When using `format`, placeholders inside strings (`'...'` and `"..."`), backtick identifiers, and comments (`#`, `/* */`, and `--` followed by whitespace) are left as they are. Executable comments (`/*! */`) and optimizer hints (`/*+ */`) are read as SQL, so their placeholders are replaced.
-- By default, double-quoted text is read as a string, where a backslash escapes the next character. If the server runs with the [`ANSI_QUOTES`](https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_ansi_quotes) SQL mode, set [`ansiQuotes`](#sql-mode), or the placeholders after a double-quoted identifier that ends in a backslash can be skipped or misplaced.
-- When structured user input is provided as the value to escape, care should be taken to validate the shape of the input, as the resulting escaped string may contain more than a single value.
-- `NaN` and `Infinity` are left as-is. MySQL does not support these values, and trying to insert them will trigger MySQL errors.
+- When structured user input is provided as the value to escape, validate the shape of the input, as the resulting escaped string may contain more than a single value.
+- `NaN` and `Infinity` are left as-is. **MySQL** does not support these values, so trying to insert them triggers an error.
 - The string provided to `raw()` will **skip all escaping**, so be careful when passing in unvalidated input.
 
 ---
@@ -573,7 +549,7 @@ See the [**Contributing Guide**](https://github.com/mysqljs/sql-escaper/blob/mai
 ## Acknowledgements
 
 - [![Contributors](https://img.shields.io/github/contributors/mysqljs/sql-escaper?label=Contributors)](https://github.com/mysqljs/sql-escaper/graphs/contributors)
-- **SQL Escaper** is adapted from [**sqlstring**](https://github.com/mysqljs/sqlstring) ([**MIT**](https://github.com/mysqljs/sqlstring/blob/master/LICENSE)), modernizing it with high performance, TypeScript support and multi-runtime compatibility.
+- **SQL Escaper** is adapted from [**sqlstring**](https://github.com/mysqljs/sqlstring) ([**MIT**](https://github.com/mysqljs/sqlstring/blob/master/LICENSE)).
 - Special thanks to [**Douglas Wilson**](https://github.com/dougwilson) for the original **sqlstring** project and its [**contributors**](https://github.com/mysqljs/sqlstring/graphs/contributors).
 
 ---
