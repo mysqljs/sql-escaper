@@ -1,5 +1,5 @@
 import { assert, describe, it } from 'poku';
-import { escape, expand } from '../src/index.ts';
+import { escape } from '../src/index.ts';
 
 describe("Can't bypass via object injection using escape directly", () => {
   const value = { password: 1 };
@@ -92,16 +92,5 @@ describe('Safe object to key-value expansion for SET clauses', () => {
 
   it('should return empty string for empty object', () => {
     assert.strictEqual(escape({}), '');
-  });
-
-  it('should expand only the allowed columns of an object the code did not build', () => {
-    const body: Record<string, unknown> = JSON.parse(
-      '{"name":"foo","role":"admin"}'
-    );
-
-    assert.strictEqual(
-      'UPDATE users SET ' + escape(expand(body, ['name', 'email']), true),
-      "UPDATE users SET `name` = 'foo'"
-    );
   });
 });

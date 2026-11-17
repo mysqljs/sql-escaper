@@ -188,16 +188,11 @@ escape(Buffer.from([0, 1, 254, 255]), true);
 
 #### Objects
 
-When `stringifyObjects` is set to a non-nullish value **(recommended)**, objects are stringified instead of being expanded into `key = value` pairs, unless marked with [`expand`](#expand), which also limits them to the columns your code allows:
+When `stringifyObjects` is set to a non-nullish value **(recommended)**, objects are stringified instead of being expanded into `key = value` pairs, unless marked with [`expand`](#expand):
 
 ```js
 escape({ a: 'b' }, true);
 // => "'[object Object]'"
-
-const body = { name: 'foo', role: 'admin' }; // e.g. a request body
-
-'UPDATE users SET ' + escape(expand(body, ['name', 'email']), true);
-// => "UPDATE users SET `name` = 'foo'"
 ```
 
 Objects with a `toSqlString` method will have that method called:

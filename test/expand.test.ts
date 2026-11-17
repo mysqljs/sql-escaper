@@ -510,6 +510,12 @@ describe('expand: only the allowed columns of a value expand', () => {
       assert.strictEqual(format(sql, [expand(value, columns)]), expected);
     });
 
+  it('should leave a key outside the allowed columns out of what escape writes', () => {
+    const body = { name: 'Ana', role: 'admin' };
+
+    assert.strictEqual(escape(expand(body, ['name']), true), "`name` = 'Ana'");
+  });
+
   it('should expand the allowed columns in the order the code lists them', () => {
     const mark = expand({ email: 'ana@example.com', name: 'Ana' }, [
       'name',
