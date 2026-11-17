@@ -174,11 +174,15 @@ describe('expand: marking an object never changes the text a SET clause produces
   ];
 
   for (const { name, value, expected } of objects) {
-    it(`should render ${name} the same whether the object is marked or not`, () => {
+    it(`should render ${name} the same whether the object is marked, limited to its own keys, or not`, () => {
       const marked = format('UPDATE t SET ?', [expand(value)]);
+      const limited = format('UPDATE t SET ?', [
+        expand(value, Object.keys(value)),
+      ]);
       const unmarked = format('UPDATE t SET ?', [value]);
 
       assert.strictEqual(marked, expected);
+      assert.strictEqual(limited, expected);
       assert.strictEqual(unmarked, expected);
     });
   }
@@ -360,6 +364,14 @@ describe('expand: a mark made by another copy or build of the package', () => {
     assert.strictEqual(Reflect.get(mark, MARK), true);
     assert.strictEqual(mark.value, value);
   });
+
+  it('should hand another copy a mark that already holds only the allowed columns', () => {
+    const mark = expand({ name: 'Ana', role: 'admin' }, ['name']);
+    const asAnotherCopyReadsIt = { [MARK]: true, value: mark.value };
+    const statement = format('UPDATE users SET ?', [asAnotherCopyReadsIt]);
+
+    assert.strictEqual(statement, "UPDATE users SET `name` = 'Ana'");
+  });
 });
 
 describe('expand: only what a SET clause expands can be marked', () => {
@@ -371,6 +383,10 @@ describe('expand: only what a SET clause expands can be marked', () => {
     Object.create(null),
     { id: 1 }
   );
+  const refusal = {
+    name: 'TypeError',
+    message: 'argument value must be an object or a Map',
+  };
   const accepted = [
     { name: 'a plain object', value: { id: 1 } },
     { name: 'a Map', value: new Map([['id', 1]]) },
@@ -406,13 +422,132 @@ describe('expand: only what a SET clause expands can be marked', () => {
   }
 
   for (const { name, value } of refused)
-    it(`should refuse to mark ${name}`, () => {
+    it(`should refuse to mark ${name}, whatever columns it allows`, () => {
+      // @ts-expect-error: testing a value expand() does not accept
+      assert.throws(() => expand(value), refusal);
+      // @ts-expect-error: testing a value expand() does not accept
+      assert.throws(() => expand(value, ['id']), refusal);
+    });
+});
+
+describe('expand: only the allowed columns of a value expand', () => {
+  const inheritsRole: Record<string, unknown> = Object.assign(
+    Object.create({
+      get role(): string {
+        throw new Error('an inherited key must never be read');
+      },
+    }),
+    { name: 'Ana' }
+  );
+  const leftOut = [
+    {
+      name: 'a key outside the allowed columns',
+      sql: 'UPDATE users SET ? WHERE id = 1',
+      value: { name: 'Ana', role: 'admin', is_admin: 1 },
+      columns: ['name'],
+      expected: "UPDATE users SET `name` = 'Ana' WHERE id = 1",
+    },
+    {
+      name: 'a dotted key that reaches a joined table',
+      sql: 'UPDATE users u JOIN accounts a ON a.user_id = u.id SET ? WHERE u.id = 1',
+      value: { name: 'Ana', 'a.balance': 9999 },
+      columns: ['name'],
+      expected:
+        "UPDATE users u JOIN accounts a ON a.user_id = u.id SET `name` = 'Ana' WHERE u.id = 1",
+    },
+    {
+      name: 'a filter on a column outside the allowed columns',
+      sql: 'SELECT id FROM users WHERE ?',
+      value: { email: 'ana@example.com', password_hash: 'x' },
+      columns: ['email'],
+      expected: "SELECT id FROM users WHERE `email` = 'ana@example.com'",
+    },
+    {
+      name: 'an allowed column the value lacks',
+      sql: 'UPDATE users SET ? WHERE id = 1',
+      value: { name: 'Ana' },
+      columns: ['name', 'email'],
+      expected: "UPDATE users SET `name` = 'Ana' WHERE id = 1",
+    },
+    {
+      name: 'an allowed key the value only inherits',
+      sql: 'UPDATE users SET ? WHERE id = 1',
+      value: inheritsRole,
+      columns: ['name', 'role'],
+      expected: "UPDATE users SET `name` = 'Ana' WHERE id = 1",
+    },
+    {
+      name: 'a key of a Map outside the allowed columns',
+      sql: 'UPDATE users SET ? WHERE id = 1',
+      value: new Map([
+        ['name', 'Ana'],
+        ['role', 'admin'],
+      ]),
+      columns: ['name'],
+      expected: "UPDATE users SET `name` = 'Ana' WHERE id = 1",
+    },
+    {
+      name: 'every key of a value holding none of the allowed columns',
+      sql: 'UPDATE users SET ? WHERE id = 1',
+      value: { role: 'admin' },
+      columns: ['name'],
+      expected: 'UPDATE users SET  WHERE id = 1',
+    },
+  ];
+  const withHole: string[] = [];
+  const invalidColumns = [
+    { name: 'a string', columns: 'name' },
+    { name: 'an array holding a number', columns: [1] },
+    { name: 'an array with a hole', columns: withHole },
+    { name: 'null', columns: null },
+    { name: 'a Set', columns: new Set(['name']) },
+  ];
+
+  withHole[1] = 'name';
+
+  for (const { name, sql, value, columns, expected } of leftOut)
+    it(`should leave ${name} out of the statement`, () => {
+      assert.strictEqual(format(sql, [expand(value, columns)]), expected);
+    });
+
+  it('should leave a key outside the allowed columns out of what escape writes', () => {
+    const body = { name: 'Ana', role: 'admin' };
+
+    assert.strictEqual(escape(expand(body, ['name']), true), "`name` = 'Ana'");
+  });
+
+  it('should expand the allowed columns in the order the code lists them', () => {
+    const mark = expand({ email: 'ana@example.com', name: 'Ana' }, [
+      'name',
+      'email',
+    ]);
+
+    assert.strictEqual(
+      format('UPDATE users SET ?', [mark]),
+      "UPDATE users SET `name` = 'Ana', `email` = 'ana@example.com'"
+    );
+  });
+
+  it('should never read a key outside the allowed columns', () => {
+    const body = {
+      name: 'Ana',
+      get role(): string {
+        throw new Error('a key outside the allowed columns must never be read');
+      },
+    };
+    const statement = format('UPDATE users SET ?', [expand(body, ['name'])]);
+
+    assert.strictEqual(statement, "UPDATE users SET `name` = 'Ana'");
+  });
+
+  for (const { name, columns } of invalidColumns)
+    it(`should refuse ${name} as the allowed columns`, () => {
       assert.throws(
-        // @ts-expect-error: testing a value expand() does not accept
-        () => expand(value),
+        // @ts-expect-error: testing allowed columns that are not an array of strings
+        () => expand({ name: 'Ana' }, columns),
         {
           name: 'TypeError',
-          message: 'argument value must be an object or a Map',
+          message: 'argument columns must be an array of strings',
         }
       );
     });

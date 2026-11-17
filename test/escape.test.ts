@@ -22,6 +22,13 @@ describe("Can't bypass via object injection using escape directly", () => {
     // @ts-expect-error: testing empty string as a falsy runtime value
     assert.strictEqual(escape(value, ''), expected);
   });
+
+  it('should stringify a Map when stringifyObjects is true', () => {
+    assert.strictEqual(
+      escape(new Map([['password', 1]]), true),
+      "'[object Map]'"
+    );
+  });
 });
 
 describe('Object expansion when stringifyObjects is nullish', () => {
@@ -71,6 +78,7 @@ describe('Safe object to key-value expansion for SET clauses', () => {
       ['fn', () => {}],
     ]);
 
+    // @ts-expect-error: testing a function value inside a Map at runtime
     assert.strictEqual(escape(value), "`name` = 'foo'");
   });
 

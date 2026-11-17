@@ -47,6 +47,12 @@ describe('SET with object parameter', () => {
     assert.strictEqual(query, "UPDATE users SET '[object Object]'");
   });
 
+  it('should stringify a Map instead of expanding for UPDATE SET clause', () => {
+    const query = format('UPDATE users SET ?', [new Map([['role', 'admin']])]);
+
+    assert.strictEqual(query, "UPDATE users SET '[object Map]'");
+  });
+
   it('should stringify object when SET is immediately followed by placeholder', () => {
     const query = format('UPDATE users SET?', [{ name: 'foo' }]);
 
