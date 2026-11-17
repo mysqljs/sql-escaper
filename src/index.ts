@@ -459,6 +459,36 @@ const isMark = (value: object): value is Expand =>
   isOwn(value, 'value') &&
   isMarkable(value.value);
 
+const isColumnList = (columns: unknown): columns is readonly string[] => {
+  if (!Array.isArray(columns)) return false;
+
+  const length = columns.length;
+
+  for (let index = 0; index < length; index++)
+    if (typeof columns[index] !== 'string') return false;
+
+  return true;
+};
+
+const pickColumns = (
+  value: Expand['value'],
+  columns: readonly string[]
+): Map<string, SqlValue> => {
+  const picked = new Map<string, SqlValue>();
+
+  if (value instanceof Map) {
+    for (const column of columns)
+      if (value.has(column)) picked.set(column, value.get(column));
+
+    return picked;
+  }
+
+  for (const column of columns)
+    if (hasOwnProperty.call(value, column)) picked.set(column, value[column]);
+
+  return picked;
+};
+
 const escapeString = (value: string): string => {
   const escapeChars = regex.escapeChars;
 
@@ -753,6 +783,7 @@ const writeAssignments = (
   return sql;
 };
 
+/** Turns every own key of the object into a column. For an object the code did not build, limit the columns with `escape(expand(object, columns))` instead. */
 export const objectToValues = (
   object: Record<string, SqlValue> | Map<string, SqlValue>,
   timezone?: Timezone,
@@ -943,10 +974,16 @@ export const raw = (sql: string): Raw => {
 };
 
 export const expand = (
-  value: Record<string, unknown> | Map<string, SqlValue>
+  value: Record<string, unknown> | Map<string, SqlValue>,
+  columns?: readonly string[]
 ): Expand => {
   if (!isMarkable(value))
     throw new TypeError('argument value must be an object or a Map');
 
-  return { [EXPAND_SYMBOL]: true, value };
+  if (columns === undefined) return { [EXPAND_SYMBOL]: true, value };
+
+  if (!isColumnList(columns))
+    throw new TypeError('argument columns must be an array of strings');
+
+  return { [EXPAND_SYMBOL]: true, value: pickColumns(value, columns) };
 };

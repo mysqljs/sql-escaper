@@ -1,5 +1,5 @@
 import { assert, describe, it } from 'poku';
-import { escape } from '../src/index.ts';
+import { escape, expand } from '../src/index.ts';
 
 describe("Can't bypass via object injection using escape directly", () => {
   const value = { password: 1 };
@@ -21,6 +21,13 @@ describe("Can't bypass via object injection using escape directly", () => {
   it('should stringify object when stringifyObjects is empty string', () => {
     // @ts-expect-error: testing empty string as a falsy runtime value
     assert.strictEqual(escape(value, ''), expected);
+  });
+
+  it('should stringify a Map when stringifyObjects is true', () => {
+    assert.strictEqual(
+      escape(new Map([['password', 1]]), true),
+      "'[object Map]'"
+    );
   });
 });
 
@@ -71,6 +78,7 @@ describe('Safe object to key-value expansion for SET clauses', () => {
       ['fn', () => {}],
     ]);
 
+    // @ts-expect-error: testing a function value inside a Map at runtime
     assert.strictEqual(escape(value), "`name` = 'foo'");
   });
 
@@ -84,5 +92,16 @@ describe('Safe object to key-value expansion for SET clauses', () => {
 
   it('should return empty string for empty object', () => {
     assert.strictEqual(escape({}), '');
+  });
+
+  it('should expand only the allowed columns of an object the code did not build', () => {
+    const body: Record<string, unknown> = JSON.parse(
+      '{"name":"foo","role":"admin"}'
+    );
+
+    assert.strictEqual(
+      'UPDATE users SET ' + escape(expand(body, ['name', 'email']), true),
+      "UPDATE users SET `name` = 'foo'"
+    );
   });
 });

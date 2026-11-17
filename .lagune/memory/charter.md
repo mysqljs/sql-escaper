@@ -16,9 +16,9 @@ Always quote an identifier (a database, table, or column name) so a caller-suppl
 
 ### III. Objects expand into SQL only where the query author asked for it, and fail closed everywhere else
 
-Never expand an object into column-and-value fragments outside a `SET` or `ON DUPLICATE KEY UPDATE` assignment list, whatever the caller's settings. Anywhere else, and wherever the position is uncertain, the object MUST become one inert quoted value. The one exception is an object the developer explicitly marked in code: it MAY expand in any position, but only where it is bound directly, never when nested inside another value, and always with every key quoted as an identifier and every value escaped. The mark MUST be something parsed or deserialized input can never carry, MUST count only when the value itself carries it, and MUST be verified again when the value becomes SQL.
+Where the library sees the query, never expand an object into column-and-value fragments outside a `SET` or `ON DUPLICATE KEY UPDATE` assignment list, whatever the caller's settings. Anywhere else, and wherever the position is uncertain, the object MUST become one inert quoted value. Where it only receives a value, the caller who writes the query MUST decide, with a choice that keeps the object inert always available. The one exception is an object the developer explicitly marked in code: it MAY expand in any position, but only where it is bound directly, never when nested inside another value, and always with every key quoted as an identifier and every value escaped. The mark MUST be something parsed or deserialized input can never carry, MUST count only when the value itself carries it, and MUST be verified again when the value becomes SQL.
 
-- Why: an object that expands where a single value was expected hands whoever controls it part of the query, turning a password check into an authentication bypass. Expansion is safe only where the query author asked for it, in the query itself or with a mark in code, and data can never forge that request.
+- Why: an object that expands where a single value was expected hands whoever controls it part of the query, turning a password check into an authentication bypass. Expansion is safe only where the query author asked for it, in the query itself, by the caller's choice, or with a mark in code, and data can never forge that request.
 
 ### IV. Raw SQL is an unescaped trapdoor that MUST stay narrow
 
@@ -68,4 +68,4 @@ A control is held even when a reason to skip it feels reasonable:
 - This charter guides every security decision in each Lagune phase, and every change to it is reviewed and approved by the maintainer.
 - It holds only what a deterministic check cannot capture, so it never repeats a control that linters or automated tools already enforce.
 
-Version: 1.2.0 | Ratified: 2026-07-07
+Version: 2.0.0 | Ratified: 2026-07-07

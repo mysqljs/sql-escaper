@@ -188,11 +188,16 @@ escape(Buffer.from([0, 1, 254, 255]), true);
 
 #### Objects
 
-When `stringifyObjects` is set to a non-nullish value **(recommended)**, objects are stringified instead of being expanded into `key = value` pairs, unless marked with [`expand`](#expand):
+When `stringifyObjects` is set to a non-nullish value **(recommended)**, objects are stringified instead of being expanded into `key = value` pairs, unless marked with [`expand`](#expand), which also limits them to the columns your code allows:
 
 ```js
 escape({ a: 'b' }, true);
 // => "'[object Object]'"
+
+const body = { name: 'foo', role: 'admin' }; // e.g. a request body
+
+'UPDATE users SET ' + escape(expand(body, ['name', 'email']), true);
+// => "UPDATE users SET `name` = 'foo'"
 ```
 
 Objects with a `toSqlString` method will have that method called:
@@ -351,6 +356,10 @@ format('SELECT ??');
 
 #### Objects in SET clauses
 
+> [!WARNING]
+>
+> The keys of an object expanded here become column names, so a request body bound as it arrives lets the client choose which columns the query changes. Set `stringifyObjects` to `true` so that only marked objects expand, and mark such an object with the columns it may expand through [`expand`](#expand).
+
 When `stringifyObjects` is falsy, objects used in `SET` or `ON DUPLICATE KEY UPDATE` contexts are expanded into `key = value` pairs:
 
 ```js
@@ -479,8 +488,24 @@ raw(42); // throws TypeError
 Marks an object or a `Map` to be expanded into `key = value` pairs in any position of the statement, regardless of the `stringifyObjects` value.
 
 ```ts
-expand(value: Record<string, unknown> | Map<string, SqlValue>): Expand
+expand(value: Record<string, unknown> | Map<string, SqlValue>, columns?: readonly string[]): Expand
 ```
+
+> [!WARNING]
+>
+> The keys of a marked object become column names. For an object your code did not build, such as a request body, pass the columns it may expand, or the client chooses which columns the query reads or changes:
+>
+> ```js
+> const body = { name: 'foo', role: 'admin' }; // e.g. a request body
+>
+> format('UPDATE users SET ? WHERE id = ?', [
+>   expand(body, ['name', 'email']),
+>   1,
+> ]);
+> // => "UPDATE users SET `name` = 'foo' WHERE id = 1"
+> ```
+>
+> Only the value's own keys that the list names expand, in the order it names them, and an allowed column the value lacks is left out instead of set to `NULL`.
 
 ```js
 format('SELECT ?? FROM ?? WHERE ? AND status IN (?) LIMIT ?', [
@@ -510,19 +535,16 @@ format('SELECT * FROM users WHERE id IN (?)', [[expand({ id: 1 })]]);
 // => "SELECT * FROM users WHERE id IN ('[object Object]')"
 ```
 
-Only accepts an object or a `Map`:
+Only accepts an object or a `Map`, with the allowed columns as an array of strings:
 
 ```js
 expand('id = 1'); // throws TypeError
 expand([{ id: 1 }]); // throws TypeError
 expand(raw('NOW()')); // throws TypeError
+expand({ id: 1 }, 'id'); // throws TypeError
 ```
 
-- The mark is the symbol registered as `sql-escaper.expand`, so a value marked by one copy of **SQL Escaper** (for example, your own dependency) expands in another (for example, the one **MySQL2** uses).
-
-> [!WARNING]
->
-> The keys of a marked object become column names. Mark only an object whose keys your code controls, never one parsed from user input, such as a request body, or the client chooses which columns the query reads or changes.
+- The mark is the symbol registered as `sql-escaper.expand`, so a value marked by one copy of **SQL Escaper** (for example, your own dependency) expands in another (for example, the one **MySQL2** uses). The copy that creates the mark applies the allowed columns, so the copy that expands it writes no other key.
 
 ---
 
