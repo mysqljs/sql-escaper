@@ -15,3 +15,10 @@
 - **Category:** SQL injection (CWE-89) through an interpretation conflict with the server's SQL mode (CWE-436)
 - **What it is:** The query scanner reads double-quoted text as a string, where a backslash escapes the next character. Under the `ANSI_QUOTES` SQL mode, MySQL reads double quotes as identifier quotes, where a backslash is an ordinary character and only a doubled quote escapes one. The values and identifiers the library writes are not affected, since it always uses single quotes for values and backticks for identifiers.
 - **Closed:** 2026-11-14
+
+### SQL mode does not reach toSqlString values
+
+- **Classification:** Critical
+- **Category:** SQL injection (CWE-89) through an escaping rule that does not match the output context (CWE-838)
+- **What it is:** A value with a `toSqlString()` method (from `raw()` or a custom object, such as a subquery built with `format`) is written into the SQL exactly as it returns it. The method is called with no arguments, so the SQL mode the outer `escape` or `format` call received never reaches any escaping done inside it. The caller must repeat the mode by hand in every nested call.
+- **Closed:** 2026-11-16

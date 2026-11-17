@@ -7,9 +7,14 @@ describe('Nested format: each call finds its own SET clause', () => {
       toSqlString: () =>
         format('SELECT ? FROM s WHERE k IN ?', ['x', { c: 3 }]),
     };
+    const actual = format('UPDATE t SET ?, note = (?), ?', [
+      { a: 1 },
+      subquery,
+      { b: 2 },
+    ]);
 
     assert.strictEqual(
-      format('UPDATE t SET ?, note = (?), ?', [{ a: 1 }, subquery, { b: 2 }]),
+      actual,
       "UPDATE t SET `a` = 1, note = (SELECT 'x' FROM s WHERE k IN '[object Object]'), `b` = 2"
     );
   });
@@ -18,9 +23,10 @@ describe('Nested format: each call finds its own SET clause', () => {
     const assignment = {
       toSqlString: () => format('UPDATE u SET ?', [{ c: 3 }]),
     };
+    const actual = format('SELECT (?), ?', [assignment, { id: true }]);
 
     assert.strictEqual(
-      format('SELECT (?), ?', [assignment, { id: true }]),
+      actual,
       "SELECT (UPDATE u SET `c` = 3), '[object Object]'"
     );
   });

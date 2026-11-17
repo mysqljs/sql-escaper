@@ -1,7 +1,8 @@
 import type { EXPAND_SYMBOL } from './index.js';
 
 export type Raw = {
-  toSqlString(): string;
+  /** Receives the SQL mode of the call writing this value, for any escaping nested inside it. */
+  toSqlString(sqlMode?: Readonly<SqlMode>): string;
 };
 
 export type Expand = {

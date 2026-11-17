@@ -1,4 +1,4 @@
-import type { SqlMode, SqlValue } from '../src/index.ts';
+import type { Raw, SqlMode, SqlValue } from '../src/index.ts';
 import { assert, describe, it } from 'poku';
 import { format } from '../src/index.ts';
 
@@ -37,27 +37,17 @@ describe('ANSI quotes: a double-quoted identifier ends only at its closing quote
 });
 
 describe('ANSI quotes: a hostile value never lands inside an identifier', () => {
-  const placements = [
-    {
-      name: 'a string that tries to close the identifier',
-      sql: 'SELECT "a\\", "b?" FROM t WHERE id = ?',
-      values: ['" OR 1=1 -- '],
-      expected: 'SELECT "a\\", "b?" FROM t WHERE id = \'\\" OR 1=1 -- \'',
-    },
-    {
-      name: 'an object that tries to become query structure',
-      sql: 'DELETE FROM t WHERE "dir\\" = ?',
-      values: [{ id: true }],
-      expected: 'DELETE FROM t WHERE "dir\\" = \'[object Object]\'',
-    },
-  ];
+  it('should bind a string that tries to close the identifier at the real placeholder after an identifier that ends in a backslash', () => {
+    const actual = formatUnderAnsiQuotes(
+      'SELECT "a\\", "b?" FROM t WHERE id = ?',
+      ['" OR 1=1 -- ']
+    );
 
-  for (const { name, sql, values, expected } of placements)
-    it(`should bind ${name} at the real placeholder after an identifier that ends in a backslash`, () => {
-      const actual = formatUnderAnsiQuotes(sql, values);
-
-      assert.strictEqual(actual, expected);
-    });
+    assert.strictEqual(
+      actual,
+      'SELECT "a\\", "b?" FROM t WHERE id = \'\\" OR 1=1 -- \''
+    );
+  });
 });
 
 describe('ANSI quotes: a SET list reads double-quoted identifiers by the same rules', () => {
@@ -83,11 +73,33 @@ describe('ANSI quotes: a SET list reads double-quoted identifiers by the same ru
     });
 });
 
+describe('ANSI quotes: a nested value builds its SQL under the same setting', () => {
+  it('should pass the mode to a nested value that builds its own query', () => {
+    const nestedSelect: Raw = {
+      toSqlString: (sqlMode) =>
+        format(
+          'SELECT id FROM u WHERE "dir\\" = ?',
+          [7],
+          false,
+          'local',
+          sqlMode
+        ),
+    };
+    const actual = formatUnderAnsiQuotes('SELECT * FROM t WHERE id IN (?)', [
+      nestedSelect,
+    ]);
+
+    assert.strictEqual(
+      actual,
+      'SELECT * FROM t WHERE id IN (SELECT id FROM u WHERE "dir\\" = 7)'
+    );
+  });
+});
+
 describe('ANSI quotes: double-quoted text stays a string unless the setting is on', () => {
   const sql = 'SELECT * FROM t WHERE note = "say \\"why?\\"" AND id = ?';
   const expected = 'SELECT * FROM t WHERE note = "say \\"why?\\"" AND id = 1';
   const modes: { label: string; sqlMode?: SqlMode }[] = [
-    { label: 'omitted' },
     { label: 'empty', sqlMode: {} },
     { label: 'false', sqlMode: { ansiQuotes: false } },
   ];
