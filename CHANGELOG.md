@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.8.0](https://github.com/mysqljs/sql-escaper/compare/v1.7.0...v1.8.0) (2026-11-17)
+
+
+### Features
+
+* let `toSqlString` values escape with the caller's SQL mode ([#80](https://github.com/mysqljs/sql-escaper/issues/80)) ([003ec69](https://github.com/mysqljs/sql-escaper/commit/003ec6917b7d30b1472b445c28c348c98b97d7f5))
+* support the `NO_BACKSLASH_ESCAPES` SQL mode ([#77](https://github.com/mysqljs/sql-escaper/issues/77)) ([4fb5876](https://github.com/mysqljs/sql-escaper/commit/4fb58767021d0ec5a8b7c3d370b037ce79c277cd))
+
 ## [1.7.0](https://github.com/mysqljs/sql-escaper/compare/v1.6.0...v1.7.0) (2026-11-16)
 
 
