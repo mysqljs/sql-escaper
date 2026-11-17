@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.0](https://github.com/mysqljs/sql-escaper/compare/v1.8.0...v1.9.0) (2026-11-17)
+
+
+### Features
+
+* limit an expanded object to the columns the code allows ([#81](https://github.com/mysqljs/sql-escaper/issues/81)) ([3c80d1c](https://github.com/mysqljs/sql-escaper/commit/3c80d1c2b8102075048a059efa3a9106dd413518))
+
 ## [1.8.0](https://github.com/mysqljs/sql-escaper/compare/v1.7.0...v1.8.0) (2026-11-17)
 
 
