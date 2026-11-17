@@ -419,6 +419,31 @@ The option must match the session's SQL mode when the server parses the statemen
 
 Any value other than a boolean throws a `TypeError`, except when no values are provided to `format`.
 
+A value with a `toSqlString` method receives the SQL mode as its argument, to pass on to the `escape` or `format` calls that build its SQL. Text escaped before the outer call, such as a value escaped into a `raw` string, must be given the same mode by hand:
+
+```js
+const sqlMode = { noBackslashEscapes: true };
+const author = {
+  toSqlString: (mode) =>
+    format(
+      'SELECT id FROM users WHERE name = ?',
+      ["it's"],
+      false,
+      'local',
+      mode
+    ),
+};
+
+format(
+  'SELECT * FROM posts WHERE author_id IN (?)',
+  [author],
+  false,
+  'local',
+  sqlMode
+);
+// => "SELECT * FROM posts WHERE author_id IN (SELECT id FROM users WHERE name = 'it''s')"
+```
+
 ---
 
 ### raw

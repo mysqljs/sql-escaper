@@ -1,4 +1,4 @@
-import type { SqlMode, SqlValue, TemporalValue } from '../src/index.ts';
+import type { Raw, SqlMode, SqlValue, TemporalValue } from '../src/index.ts';
 import { Buffer } from 'node:buffer';
 import { assert, describe, it } from 'poku';
 import {
@@ -119,6 +119,17 @@ describe('No backslash escapes: nested values escape by the same rules', () => {
     },
   ];
 
+  const nestedSelect: Raw = {
+    toSqlString: (sqlMode) =>
+      format(
+        'SELECT id FROM u WHERE name = ?',
+        ["x\\' OR 1=1 -- "],
+        false,
+        'local',
+        sqlMode
+      ),
+  };
+
   for (const { name, sql, values, expected } of placements)
     it(`should double the quotes in ${name}`, () => {
       const actual = formatUnderNoBackslashEscapes(sql, values);
@@ -163,6 +174,40 @@ describe('No backslash escapes: nested values escape by the same rules', () => {
     );
 
     assert.strictEqual(actual, "SELECT 'it''s'");
+  });
+
+  it('should pass the mode to a nested value that builds its own query', () => {
+    const actual = formatUnderNoBackslashEscapes(
+      'SELECT * FROM t WHERE id IN (?)',
+      [nestedSelect]
+    );
+
+    assert.strictEqual(
+      actual,
+      "SELECT * FROM t WHERE id IN (SELECT id FROM u WHERE name = 'x\\'' OR 1=1 -- ')"
+    );
+  });
+
+  it('should keep a nested value from changing the mode later values receive', () => {
+    const tampering: Raw = {
+      toSqlString: (sqlMode) => {
+        if (sqlMode) Reflect.set(sqlMode, 'noBackslashEscapes', false);
+
+        return 'NULL';
+      },
+    };
+
+    formatUnderNoBackslashEscapes('SELECT ?', [tampering]);
+
+    const actual = formatUnderNoBackslashEscapes(
+      'SELECT * FROM t WHERE id IN (?)',
+      [nestedSelect]
+    );
+
+    assert.strictEqual(
+      actual,
+      "SELECT * FROM t WHERE id IN (SELECT id FROM u WHERE name = 'x\\'' OR 1=1 -- ')"
+    );
   });
 });
 
