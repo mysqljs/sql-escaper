@@ -38,7 +38,7 @@
     "update": "pu && npm i && (npm audit fix || true) && npm run lint:fix"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.13",
+    "@biomejs/biome": "^2.6.7",
     "@ianvs/prettier-plugin-sort-imports": "^4.7.1",
     "@js-temporal/polyfill": "^0.5.1",
     "@types/node": "^26.6.6",
