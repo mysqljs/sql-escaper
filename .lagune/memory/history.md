@@ -36,3 +36,10 @@
 - **Category:** SQL injection (CWE-89) through an object expanded where a value was expected, and mass assignment (CWE-915) through caller-chosen column names in assignment lists
 - **What it is:** Without a mark, an object or a `Map` still expands into `` `key` = value `` pairs by default, a behavior kept from **sqlstring**. In `format`, an object bound to a placeholder inside a `SET` or `ON DUPLICATE KEY UPDATE` assignment list expands while `stringifyObjects` is unset or `false`, and only a truthy value turns it into an inert quoted string. In `escape`, which never sees the query around its output, an object expands wherever that output lands while `stringifyObjects` is unset, and any other value, `false` included, turns it into an inert quoted string. Neither path has anywhere to pass the columns the code allows.
 - **Closed:** 2026-11-17
+
+### String escaping that is safe in only one SQL mode
+
+- **Classification:** Critical
+- **Category:** SQL injection (CWE-89) through escaping written for a different SQL mode than the session's (CWE-116)
+- **What it is:** Every text value, including a date, a Temporal value, or an object written as its string form, becomes a quoted literal in one of two forms, chosen by the caller's `noBackslashEscapes` flag. The default form puts a backslash before a quote, a backslash, a double quote, and a few control characters, so only a session that honors backslashes reads it as written. The `noBackslashEscapes` form doubles quotes and writes a value holding a backslash as its UTF-8 bytes in hexadecimal with a `utf8mb4` introducer, and `format` under it rejects a query string whose quote follows an odd run of backslashes, so both modes read the characters it writes the same way. The library cannot check that the flag matches the mode the server session is really in.
+- **Closed:** 2026-11-18
