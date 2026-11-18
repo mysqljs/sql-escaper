@@ -17,11 +17,9 @@
 - Support for `Uint8Array`, `BigInt`, and `Temporal`.
 - Support for both **CJS** and **ESM** exports.
 - Up to [**~44% faster**](#performance) than **sqlstring**.
-- Distinguishes when a keyword is used as a value.
-- Distinguishes when a column has a keyword name.
-- Distinguishes between multiple clauses/keywords in the same query.
+- Tells a real `SET` or `ON DUPLICATE KEY UPDATE` clause apart from the same words in a value, a column name, or another statement.
 - Support for the [`NO_BACKSLASH_ESCAPES`](#sql-mode) SQL mode _(**sqlstring** only escapes correctly with it disabled)_.
-- Support from **Node.js 12** onward _(**sqlstring** supports **Node.js 0.6**)_, which allows the modern engine optimizations behind the performance gains.
+- Support from **Node.js 12** onward _(**sqlstring** supports **Node.js 0.6**)_.
 
 > [!TIP]
 >
@@ -31,7 +29,7 @@
 >
 > 🔐 **SQL Escaper** is intended to fix a potential [**SQL Injection vulnerability**](https://flattsecurity.medium.com/finding-an-unseen-sql-injection-by-bypassing-escape-functions-in-mysqljs-mysql-90b27f6542b4) reported in 2022. When the original [**sqlstring**](https://github.com/mysqljs/sqlstring) is combined with [**mysqljs/mysql**](https://github.com/mysqljs/mysql) or [**MySQL2**](https://github.com/sidorares/node-mysql2), objects passed as values can be expanded into SQL fragments, potentially allowing attackers to manipulate the query structure. See [sidorares/node-mysql2#4051](https://github.com/sidorares/node-mysql2/issues/4051) for details.
 >
-> <sup>1</sup> Regardless of the `stringifyObjects` value, objects used outside of `SET` or `ON DUPLICATE KEY UPDATE` contexts are stringified as `'[object Object]'` unless you mark them with [**`expand`**](#expand). This is a security measure against that vulnerability and is not considered a breaking change for **sqlstring** usage.
+> <sup>1</sup> In `format`, regardless of the `stringifyObjects` value, objects used outside of `SET` or `ON DUPLICATE KEY UPDATE` contexts are stringified as `'[object Object]'` unless you mark them with [**`expand`**](#expand). This is a security measure against that vulnerability and is not considered a breaking change for **sqlstring** usage.
 
 ---
 
@@ -97,7 +95,9 @@ escapeId('table.column');
 format('SELECT * FROM ?? WHERE id = ?', ['users', 42]);
 // => 'SELECT * FROM `users` WHERE id = 42'
 
-format('INSERT INTO users SET ?', [{ name: 'foo', email: 'bar@test.com' }]);
+format('INSERT INTO users SET ?', [
+  expand({ name: 'foo', email: 'bar@test.com' }, ['name', 'email']),
+]);
 // => "INSERT INTO users SET `name` = 'foo', `email` = 'bar@test.com'"
 
 format('SELECT * FROM users WHERE ?', [expand({ id: 42 })]);
@@ -398,7 +398,7 @@ format('SELECT * FROM users WHERE data = ?', [new Map([['id', 1]])]);
 
 #### SQL mode
 
-By default, double-quoted text is read as a string, where a backslash escapes the next character. When the server runs with the [`ANSI_QUOTES`](https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_ansi_quotes) SQL mode, that reading can skip or misplace the placeholders after a double-quoted identifier that ends in a backslash, so set `ansiQuotes` to have double-quoted text read as an identifier, where a backslash is an ordinary character:
+When the server runs with the [`ANSI_QUOTES`](https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_ansi_quotes) SQL mode, double quotes delimit identifiers instead of strings. Set `ansiQuotes` so `format` reads them the same way, or a double-quoted identifier that ends in a backslash can misplace the values after it:
 
 ```js
 const sqlMode = { ansiQuotes: true };
@@ -407,21 +407,23 @@ format('SELECT "dir\\" FROM t WHERE id = ?', [1], false, 'local', sqlMode);
 // => 'SELECT "dir\\" FROM t WHERE id = 1'
 ```
 
-When the server runs with the [`NO_BACKSLASH_ESCAPES`](https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_no_backslash_escapes) SQL mode, a backslash in a string is an ordinary character, so the default escaping lets a value end its string early. Set `noBackslashEscapes` to escape a quote by doubling it and keep every other character as it is, in `escape` and `format`. Placeholders after a string that ends in a backslash are then found too:
+When the server runs with the [`NO_BACKSLASH_ESCAPES`](https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_no_backslash_escapes) SQL mode, a backslash in a string is an ordinary character, so the default escaping lets a value end its string early. Set `noBackslashEscapes` to write every value in a form both modes read the same way, in `escape` and `format`:
 
 ```js
 const sqlMode = { noBackslashEscapes: true };
 
-escape("it's C:\\", false, 'local', sqlMode);
-// => "'it''s C:\\'"
+format('SELECT ? AS dir, ? AS name', ['C:\\', "it's"], false, 'local', sqlMode);
+// => "SELECT REPLACE('C:\\%', '\\%', LEFT('\\%', 1)) AS dir, 'it''s' AS name"
 
 format("SELECT 'C:\\' AS dir, ? AS name", ["it's"], false, 'local', sqlMode);
-// => "SELECT 'C:\\' AS dir, 'it''s' AS name"
+// throws TypeError
 ```
 
-The option must match the session's SQL mode when the server parses the statement. Set while the mode is off, it lets a value end its string early just as the default does while the mode is on. The server reports the mode in the `SERVER_STATUS_NO_BACKSLASH_ESCAPES` status flag, which can lag behind the session, for example after a stored routine that changes `sql_mode` returns.
+Also set `noBackslashEscapes` whenever the mode cannot be known for sure, for example when it comes from the `SERVER_STATUS_NO_BACKSLASH_ESCAPES` status flag, which can lag behind the session. A value holding a backslash is written as an expression that rebuilds it, which **MySQL** rejects where only a quoted string is allowed, such as `IDENTIFIED BY`.
 
-Any value other than a boolean throws a `TypeError`, except when no values are provided to `format`.
+A string written in the query itself reads differently in each mode when it holds a backslash, so pass that text as a value instead. With the option set, `format` throws a `TypeError` where a quote follows an odd number of backslashes, as in the last query above.
+
+Setting `noBackslashEscapes` to anything other than a boolean throws a `TypeError`. `format` throws neither error when no values are provided.
 
 A value with a `toSqlString` method receives the SQL mode as its argument, to pass on to the `escape` or `format` calls that build its SQL. Text escaped before the outer call, such as a value escaped into a `raw` string, must be given the same mode by hand:
 
@@ -523,7 +525,7 @@ escape(expand({ id: 1 }), true);
 // => '`id` = 1'
 ```
 
-A marked object produces the same text it produces in a `SET` clause, with dates in the timezone given to the call. Only the marked value expands, so other objects in the statement keep the default behavior, and a mark nested inside an array, a `Set`, an object, or a `Map` is stringified like any nested object:
+A marked object produces the same text it produces in a `SET` clause. Only the marked value expands, so other objects in the statement keep the default behavior, and a mark nested inside an array, a `Set`, an object, or a `Map` is stringified like any nested object:
 
 ```js
 format('SELECT * FROM users WHERE id IN (?)', [[expand({ id: 1 })]]);
@@ -539,7 +541,7 @@ expand(raw('NOW()')); // throws TypeError
 expand({ id: 1 }, 'id'); // throws TypeError
 ```
 
-- The mark is the symbol registered as `sql-escaper.expand`, so a value marked by one copy of **SQL Escaper** (for example, your own dependency) expands in another (for example, the one **MySQL2** uses). The copy that creates the mark applies the allowed columns, so the copy that expands it writes no other key.
+- A value marked by one copy of **SQL Escaper** (for example, your own dependency) expands in another (for example, the one **MySQL2** uses), limited to the columns given when it was marked.
 
 ---
 
@@ -548,7 +550,14 @@ expand({ id: 1 }, 'id'); // throws TypeError
 You can import the available types:
 
 ```ts
-import type { Expand, Raw, SqlMode, SqlValue, Timezone } from 'sql-escaper';
+import type {
+  Expand,
+  Raw,
+  SqlMode,
+  SqlValue,
+  TemporalValue,
+  Timezone,
+} from 'sql-escaper';
 ```
 
 ---
@@ -573,8 +582,7 @@ Each benchmark formats `10,000` queries using `format` with `100` values, compar
 
 > [!NOTE]
 >
-> Benchmarks ran on [**GitHub Actions**](https://github.com/mysqljs/sql-escaper/blob/main/.github/workflows/ci_benchmark.yml) (`ubuntu-latest`) using **Node.js LTS**.
-> Results may vary depending on runner hardware and runtime version.
+> Benchmarks ran on [**GitHub Actions**](https://github.com/mysqljs/sql-escaper/blob/main/.github/workflows/ci_benchmark.yml) (`ubuntu-latest`) using **Node.js LTS**. Results may vary depending on runner hardware and runtime version.
 
 ---
 
@@ -583,7 +591,7 @@ Each benchmark formats `10,000` queries using `format` with `100` values, compar
 > Based on the original [**sqlstring** documentation](https://github.com/mysqljs/sqlstring#readme).
 
 - The escaping methods in this library only work when the [`NO_BACKSLASH_ESCAPES`](https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_no_backslash_escapes) SQL mode is disabled (which is the default state for **MySQL** servers), unless `noBackslashEscapes` is set in the [SQL mode](#sql-mode) argument.
-- This library performs **client-side escaping** to generate SQL strings. The syntax for `format` may look similar to a prepared statement, but it is not one.
+- This library performs **client-side escaping** to generate SQL strings. The syntax for `format` may look similar to a prepared statement, but it is not one. The escaped SQL is safe only on a connection whose character set cannot turn another character into a quote, a backslash, or a backtick, such as `utf8mb4`.
 - When using `format`, placeholders inside strings (`'...'` and `"..."`), backtick identifiers, and comments (`#`, `/* */`, and `--` followed by whitespace) are left as they are. Executable comments (`/*! */`) and optimizer hints (`/*+ */`) are read as SQL, so their placeholders are replaced.
 - When structured user input is provided as the value to escape, validate the shape of the input, as the resulting escaped string may contain more than a single value.
 - `NaN` and `Infinity` are left as-is. **MySQL** does not support these values, so trying to insert them triggers an error.

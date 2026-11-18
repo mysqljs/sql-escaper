@@ -48,6 +48,7 @@ const SET_CLAUSE_TERMINATORS = [
 
 const regex = {
   backtick: /`/g,
+  backslash: /\\/g,
   dot: /\./g,
   timezone: /([+\-\s])(\d\d):?(\d\d)?/,
   escapeChars: /[\0\b\t\n\r\x1a"'\\]/g,
@@ -161,13 +162,41 @@ const skipQuotedWithoutEscapes = (
 
   for (let cursor = position + 1; cursor < length; cursor++) {
     if (sql.charCodeAt(cursor) !== quote) continue;
+    if (sql.charCodeAt(cursor + 1) !== quote) return cursor + 1;
 
-    if (sql.charCodeAt(cursor + 1) === quote) {
-      cursor++;
-      continue;
-    }
+    cursor++;
+  }
 
-    return cursor + 1;
+  return length;
+};
+
+const followsOddBackslashRun = (sql: string, position: number): boolean => {
+  let runStart = position;
+
+  while (sql.charCodeAt(runStart - 1) === charCode.backslash) runStart--;
+
+  return ((position - runStart) & 1) === 1;
+};
+
+const rejectAmbiguousQuote = (position: number): never => {
+  throw new TypeError(
+    `argument sql has a quote after an odd number of backslashes at position ${position}, which the SQL modes read differently: pass the string that holds it as a value instead`
+  );
+};
+
+const skipUnambiguousString = (
+  sql: string,
+  position: number,
+  quote: number
+): number => {
+  const length = sql.length;
+
+  for (let cursor = position + 1; cursor < length; cursor++) {
+    if (sql.charCodeAt(cursor) !== quote) continue;
+    if (followsOddBackslashRun(sql, cursor)) rejectAmbiguousQuote(cursor);
+    if (sql.charCodeAt(cursor + 1) !== quote) return cursor + 1;
+
+    cursor++;
   }
 
   return length;
@@ -185,11 +214,13 @@ const skipSqlContext = (
     currentChar === charCode.doubleQuote
   ) {
     if (
-      (modeFlags & sqlModeFlag.noBackslashEscapes) !== 0 ||
-      ((modeFlags & sqlModeFlag.ansiQuotes) !== 0 &&
-        currentChar === charCode.doubleQuote)
+      (modeFlags & sqlModeFlag.ansiQuotes) !== 0 &&
+      currentChar === charCode.doubleQuote
     )
       return skipQuotedWithoutEscapes(sql, position, currentChar);
+
+    if ((modeFlags & sqlModeFlag.noBackslashEscapes) !== 0)
+      return skipUnambiguousString(sql, position, currentChar);
 
     const length = sql.length;
 
@@ -253,6 +284,17 @@ const findNextPlaceholder = (
   }
 
   return -1;
+};
+
+const rejectAmbiguousStringsAfter = (
+  sql: string,
+  placeholderPosition: number,
+  modeFlags: number
+): void => {
+  let position = placeholderPosition;
+
+  while (position !== -1)
+    position = findNextPlaceholder(sql, position + 1, modeFlags);
 };
 
 const isInSetAssignmentList = (
@@ -545,7 +587,7 @@ const escapeString = (value: string): string => {
   return result + value.slice(chunkStart) + "'";
 };
 
-const quoteString = (value: string): string => {
+const quoteByDoubling = (value: string): string => {
   let quotePosition = value.indexOf("'");
 
   if (quotePosition === -1) return `'${value}'`;
@@ -560,6 +602,14 @@ const quoteString = (value: string): string => {
   }
 
   return result + value.slice(chunkStart) + "'";
+};
+
+const quoteString = (value: string): string => {
+  const literal = quoteByDoubling(value);
+
+  if (!value.includes('\\')) return literal;
+
+  return `REPLACE(${literal.replace(regex.backslash, '\\%')}, '\\%', LEFT('\\%', 1))`;
 };
 
 const readNoBackslashEscapes = (sqlMode: SqlMode): boolean => {
@@ -957,6 +1007,9 @@ export const format = (
     valuesIndex++;
     placeholderPosition = findNextPlaceholder(sql, placeholderEnd, modeFlags);
   }
+
+  if ((modeFlags & sqlModeFlag.noBackslashEscapes) !== 0)
+    rejectAmbiguousStringsAfter(sql, placeholderPosition, modeFlags);
 
   if (chunkIndex === 0) return sql;
   if (chunkIndex < sql.length) return result + sql.slice(chunkIndex);

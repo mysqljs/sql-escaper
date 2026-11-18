@@ -14,29 +14,11 @@ Always quote an identifier (a database, table, or column name) so a caller-suppl
 
 - Why: a name that breaks out of its quoting injects SQL just as a broken-out value does, and an unintended dot can silently point a query at data the caller was never meant to touch.
 
-### III. Objects expand into SQL only where the query author asked for it, and fail closed everywhere else
-
-Where the library sees the query, never expand an object into column-and-value fragments outside a `SET` or `ON DUPLICATE KEY UPDATE` assignment list, whatever the caller's settings. Anywhere else, and wherever the position is uncertain, the object MUST become one inert quoted value. Where it only receives a value, the caller who writes the query MUST decide, with a choice that keeps the object inert always available. The one exception is an object the developer explicitly marked in code: it MAY expand in any position, but only where it is bound directly, never when nested inside another value, and always with every key quoted as an identifier and every value escaped. The mark MUST be something parsed or deserialized input can never carry, MUST count only when the value itself carries it, and MUST be verified again when the value becomes SQL.
-
-- Why: an object that expands where a single value was expected hands whoever controls it part of the query, turning a password check into an authentication bypass. Expansion is safe only where the query author asked for it, in the query itself, by the caller's choice, or with a mark in code, and data can never forge that request.
-
-### IV. Raw SQL is an unescaped trapdoor that MUST stay narrow
+### III. Raw SQL is an unescaped trapdoor that MUST stay narrow
 
 Never widen what bypasses escaping. A value the developer declares as raw SQL is emitted verbatim, so it MUST only ever carry query text the developer wrote, never data that originated from a user. Any change that lets more input reach the output unescaped MUST be treated as a security change.
 
 - Why: the trapdoor exists for trusted fragments such as `NOW()`. If untrusted input reaches it, or the set of values treated as raw quietly grows, escaping is silently switched off for that value and injection returns.
-
-### V. Escaping behavior only changes on purpose, proven by tests
-
-Never change how a value is escaped, how an identifier is quoted, or when an object expands without a test that pins the new behavior while every existing test still passes. Always treat such a change as a security change, never a refactor.
-
-- Why: database drivers depend on this code by default, so a quiet change that looks like a harmless cleanup can reopen an injection path no one notices until it is exploited.
-
-### VI. No runtime dependencies
-
-Never add a runtime dependency unless it is genuinely unavoidable and has been reviewed as attack surface first. The package MUST ship as self-contained code.
-
-- Why: the package sits in the query path of countless applications beneath MySQL drivers, so a single compromised dependency would reach every one of them.
 
 ## Baseline discipline
 
@@ -68,4 +50,4 @@ A control is held even when a reason to skip it feels reasonable:
 - This charter guides every security decision in each Lagune phase, and every change to it is reviewed and approved by the maintainer.
 - It holds only what a deterministic check cannot capture, so it never repeats a control that linters or automated tools already enforce.
 
-Version: 2.0.0 | Ratified: 2026-07-07
+Version: 3.0.0 | Ratified: 2026-07-07
