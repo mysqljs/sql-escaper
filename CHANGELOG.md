@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.1](https://github.com/mysqljs/sql-escaper/compare/v1.9.0...v1.9.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* make `noBackslashEscapes` escaping hold in either SQL mode ([#83](https://github.com/mysqljs/sql-escaper/issues/83)) ([99dedb3](https://github.com/mysqljs/sql-escaper/commit/99dedb3c269392400eb8e24f4b92dbbf9a816aa7))
+
 ## [1.9.0](https://github.com/mysqljs/sql-escaper/compare/v1.8.0...v1.9.0) (2026-11-17)
 
 
