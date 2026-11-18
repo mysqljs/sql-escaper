@@ -30,26 +30,35 @@ const formatUnderNoBackslashEscapes = (sql: string, values: SqlValue[]) =>
 describe('No backslash escapes: a string reads the same whether the session honors backslashes or not', () => {
   const strings = [
     { name: 'a quote', value: "it's", expected: "'it''s'" },
-    { name: 'a backslash', value: 'a\\b', expected: "_utf8mb4 X'615c62'" },
+    {
+      name: 'a backslash',
+      value: 'a\\b',
+      expected: "REPLACE('a\\%b', '\\%', LEFT('\\%', 1))",
+    },
     {
       name: 'a trailing backslash',
       value: 'C:\\',
-      expected: "_utf8mb4 X'433a5c'",
+      expected: "REPLACE('C:\\%', '\\%', LEFT('\\%', 1))",
     },
     {
       name: 'a backslash before a quote',
       value: "x\\' OR 1=1 -- ",
-      expected: "_utf8mb4 X'785c27204f5220313d31202d2d20'",
+      expected: "REPLACE('x\\%'' OR 1=1 -- ', '\\%', LEFT('\\%', 1))",
+    },
+    {
+      name: 'a backslash before a percent sign',
+      value: '50\\%',
+      expected: "REPLACE('50\\%%', '\\%', LEFT('\\%', 1))",
     },
     {
       name: 'a multibyte character next to a backslash',
       value: 'é\\',
-      expected: "_utf8mb4 X'c3a95c'",
+      expected: "REPLACE('é\\%', '\\%', LEFT('\\%', 1))",
     },
     {
       name: 'a character outside the Basic Multilingual Plane next to a backslash',
       value: '😀\\',
-      expected: "_utf8mb4 X'f09f98805c'",
+      expected: "REPLACE('😀\\%', '\\%', LEFT('\\%', 1))",
     },
     {
       name: 'control characters and a double quote',
@@ -58,6 +67,10 @@ describe('No backslash escapes: a string reads the same whether the session hono
     },
     { name: 'no special character', value: 'plain', expected: "'plain'" },
   ];
+  const writeEveryString = () =>
+    strings.map(({ value }) =>
+      escape(value, false, 'local', noBackslashEscapes)
+    );
 
   for (const { name, value, expected } of strings) {
     it(`should escape ${name} in escape()`, () => {
@@ -73,13 +86,22 @@ describe('No backslash escapes: a string reads the same whether the session hono
     });
   }
 
-  it('should never write a backslash, which a session that honors backslashes would read as an escape', () => {
-    const written = strings.map(({ value }) =>
-      escape(value, false, 'local', noBackslashEscapes)
-    );
+  it('should write a backslash only before a percent sign, which both modes read as the same two characters', () => {
+    const written = writeEveryString();
 
     assert.deepStrictEqual(
-      written.filter((literal) => literal.includes('\\')),
+      written.filter((literal) => /\\(?!%)/.test(literal)),
+      []
+    );
+  });
+
+  it('should build text only from quoted strings, which take the collation of the connection', () => {
+    const builtFromQuotedStrings =
+      /^(?:'(?:[^']|'')*'|REPLACE\('(?:[^']|'')*', '\\%', LEFT\('\\%', 1\)\))$/;
+    const written = writeEveryString();
+
+    assert.deepStrictEqual(
+      written.filter((literal) => !builtFromQuotedStrings.test(literal)),
       []
     );
   });
@@ -91,7 +113,8 @@ describe('No backslash escapes: nested values escape by the same rules', () => {
       name: 'an array',
       sql: 'SELECT * FROM t WHERE name IN (?)',
       values: [["it's", 'C:\\']],
-      expected: "SELECT * FROM t WHERE name IN ('it''s', _utf8mb4 X'433a5c')",
+      expected:
+        "SELECT * FROM t WHERE name IN ('it''s', REPLACE('C:\\%', '\\%', LEFT('\\%', 1)))",
     },
     {
       name: 'a nested array',
@@ -109,7 +132,8 @@ describe('No backslash escapes: nested values escape by the same rules', () => {
       name: 'an object in a SET clause',
       sql: 'UPDATE t SET ?',
       values: [{ name: "it's\\" }],
-      expected: "UPDATE t SET `name` = _utf8mb4 X'697427735c'",
+      expected:
+        "UPDATE t SET `name` = REPLACE('it''s\\%', '\\%', LEFT('\\%', 1))",
     },
     {
       name: 'a Map in a SET clause',
@@ -201,7 +225,7 @@ describe('No backslash escapes: nested values escape by the same rules', () => {
 
     assert.strictEqual(
       actual,
-      "SELECT * FROM t WHERE id IN (SELECT id FROM u WHERE name = _utf8mb4 X'785c27204f5220313d31202d2d20')"
+      "SELECT * FROM t WHERE id IN (SELECT id FROM u WHERE name = REPLACE('x\\%'' OR 1=1 -- ', '\\%', LEFT('\\%', 1)))"
     );
   });
 
@@ -223,7 +247,7 @@ describe('No backslash escapes: nested values escape by the same rules', () => {
 
     assert.strictEqual(
       actual,
-      "SELECT * FROM t WHERE id IN (SELECT id FROM u WHERE name = _utf8mb4 X'785c27204f5220313d31202d2d20')"
+      "SELECT * FROM t WHERE id IN (SELECT id FROM u WHERE name = REPLACE('x\\%'' OR 1=1 -- ', '\\%', LEFT('\\%', 1)))"
     );
   });
 });
@@ -389,6 +413,11 @@ describe('No backslash escapes: a query string that the two modes end at differe
       sql: "SELECT * FROM t WHERE id = ? AND owner = ? AND path = 'C:\\'",
       position: 58,
     },
+    {
+      name: 'a string after a placeholder left without a value',
+      sql: "SELECT * FROM t WHERE id = ? AND owner = ? AND tag = ? AND path = 'C:\\'",
+      position: 70,
+    },
   ];
   const ambiguousQuoteAt = (position: number) => ({
     name: 'TypeError',
@@ -424,7 +453,7 @@ describe('No backslash escapes: every kind of value', () => {
     {
       name: 'a value tagged as Temporal',
       value: hostileTemporal,
-      expected: "_utf8mb4 X'785c27204f5220313d31202d2d20'",
+      expected: "REPLACE('x\\%'' OR 1=1 -- ', '\\%', LEFT('\\%', 1))",
     },
     { name: 'a raw value', value: raw("'a\\'"), expected: "'a\\'" },
     {
@@ -451,7 +480,10 @@ describe('No backslash escapes: every kind of value', () => {
     const temporal = temporalToString(hostileTemporal, 'Z', noBackslashEscapes);
 
     assert.strictEqual(date, "'1970-01-01 00:00:00.000'");
-    assert.strictEqual(temporal, "_utf8mb4 X'785c27204f5220313d31202d2d20'");
+    assert.strictEqual(
+      temporal,
+      "REPLACE('x\\%'' OR 1=1 -- ', '\\%', LEFT('\\%', 1))"
+    );
   });
 
   it('should double the quotes in a value of an unrecognized type', () => {

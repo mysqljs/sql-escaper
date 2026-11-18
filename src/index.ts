@@ -48,6 +48,7 @@ const SET_CLAUSE_TERMINATORS = [
 
 const regex = {
   backtick: /`/g,
+  backslash: /\\/g,
   dot: /\./g,
   timezone: /([+\-\s])(\d\d):?(\d\d)?/,
   escapeChars: /[\0\b\t\n\r\x1a"'\\]/g,
@@ -586,12 +587,7 @@ const escapeString = (value: string): string => {
   return result + value.slice(chunkStart) + "'";
 };
 
-const writeHexString = (value: string): string =>
-  `_utf8mb4 X'${Buffer.from(value, 'utf8').toString('hex')}'`;
-
-const quoteString = (value: string): string => {
-  if (value.includes('\\')) return writeHexString(value);
-
+const quoteByDoubling = (value: string): string => {
   let quotePosition = value.indexOf("'");
 
   if (quotePosition === -1) return `'${value}'`;
@@ -606,6 +602,14 @@ const quoteString = (value: string): string => {
   }
 
   return result + value.slice(chunkStart) + "'";
+};
+
+const quoteString = (value: string): string => {
+  const literal = quoteByDoubling(value);
+
+  if (!value.includes('\\')) return literal;
+
+  return `REPLACE(${literal.replace(regex.backslash, '\\%')}, '\\%', LEFT('\\%', 1))`;
 };
 
 const readNoBackslashEscapes = (sqlMode: SqlMode): boolean => {

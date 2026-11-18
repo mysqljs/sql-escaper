@@ -413,13 +413,13 @@ When the server runs with the [`NO_BACKSLASH_ESCAPES`](https://dev.mysql.com/doc
 const sqlMode = { noBackslashEscapes: true };
 
 format('SELECT ? AS dir, ? AS name', ['C:\\', "it's"], false, 'local', sqlMode);
-// => "SELECT _utf8mb4 X'433a5c' AS dir, 'it''s' AS name"
+// => "SELECT REPLACE('C:\\%', '\\%', LEFT('\\%', 1)) AS dir, 'it''s' AS name"
 
 format("SELECT 'C:\\' AS dir, ? AS name", ["it's"], false, 'local', sqlMode);
 // throws TypeError
 ```
 
-Also set `noBackslashEscapes` whenever the mode cannot be known for sure, for example when it comes from the `SERVER_STATUS_NO_BACKSLASH_ESCAPES` status flag, which can lag behind the session. A server without `utf8mb4` (before **MySQL** 5.5.3) rejects a value holding a backslash.
+Also set `noBackslashEscapes` whenever the mode cannot be known for sure, for example when it comes from the `SERVER_STATUS_NO_BACKSLASH_ESCAPES` status flag, which can lag behind the session. A value holding a backslash is written as an expression that rebuilds it, which **MySQL** rejects where only a quoted string is allowed, such as `IDENTIFIED BY`.
 
 A string written in the query itself reads differently in each mode when it holds a backslash, so pass that text as a value instead. With the option set, `format` throws a `TypeError` where a quote follows an odd number of backslashes, as in the last query above.
 
