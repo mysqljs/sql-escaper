@@ -1059,3 +1059,10 @@ export const expand = (
 
   return { [EXPAND_SYMBOL]: true, value: pickColumns(value, columns) };
 };
+
+/** Tells whether `format` and `escape` write the value as a mark of `expand()`, including one made by another installed copy. */
+export const isExpand = (value: unknown): value is Expand =>
+  typeof value === 'object' &&
+  value !== null &&
+  isMark(value) &&
+  isExpandable(value);
