@@ -1,7 +1,7 @@
 import type { Expand } from '../src/index.ts';
 import { Buffer } from 'node:buffer';
 import { assert, describe, it } from 'poku';
-import { escape, expand, format, raw } from '../src/index.ts';
+import { escape, expand, format, isExpand, raw } from '../src/index.ts';
 import { noColumnToSet } from './__utils__/noColumnToSet.ts';
 
 const MARK = Symbol.for('sql-escaper.expand');
@@ -323,6 +323,37 @@ describe('expand: only the mark itself counts, never a lookalike', () => {
     },
     { name: 'a mark whose content is inherited', value: inheritedContent },
   ];
+  const ownedMark = { [MARK]: true, value: { id: 1 } };
+  const otherTypes = [
+    { name: 'an array', value: Object.assign([7], ownedMark), written: '7' },
+    {
+      name: 'a Set',
+      value: Object.assign(new Set([7]), ownedMark),
+      written: '7',
+    },
+    {
+      name: 'a Date',
+      value: Object.assign(new Date(0), ownedMark),
+      written: "'1970-01-01 00:00:00.000'",
+    },
+    {
+      name: 'a Buffer',
+      value: Object.assign(Buffer.from([1]), ownedMark),
+      written: "X'01'",
+    },
+    {
+      name: 'a raw value',
+      value: Object.assign(raw('NOW()'), ownedMark),
+      written: 'NOW()',
+    },
+  ];
+  const ordinaryValues = [
+    { name: 'null', value: null },
+    { name: 'undefined', value: undefined },
+    { name: 'a string', value: 'id = 1' },
+    { name: 'a number', value: 1 },
+    { name: 'an array holding a mark', value: [expand({ id: 1 })] },
+  ];
 
   for (const { name, value, inSet } of lookalikes) {
     it(`should handle ${name} as the ordinary object it is`, () => {
@@ -347,6 +378,42 @@ describe('expand: only the mark itself counts, never a lookalike', () => {
     });
   }
 
+  for (const { name, value, written } of otherTypes)
+    it(`should write ${name} that owns a mark as its own type, never as a mark`, () => {
+      const formatted = format('?', [value], false, 'Z');
+      const escaped = escape(value, false, 'Z');
+      const counted = isExpand(value);
+
+      assert.strictEqual(formatted, written);
+      assert.strictEqual(escaped, written);
+      assert.strictEqual(counted, false);
+    });
+
+  for (const { name, value } of [
+    ...lookalikes,
+    ...lookalikesWithoutColumns,
+    ...ordinaryValues,
+  ])
+    it(`should tell that ${name} is not a mark`, () => {
+      assert.strictEqual(isExpand(value), false);
+    });
+
+  it('should never read a mark the value only inherits', () => {
+    const inheritsMark: Record<string, unknown> = Object.create({
+      get [MARK](): never {
+        throw new Error('an inherited mark must never be read');
+      },
+      get value(): never {
+        throw new Error('an inherited value must never be read');
+      },
+    });
+    const inWhere = format('SELECT * FROM t WHERE ?', [inheritsMark]);
+    const counted = isExpand(inheritsMark);
+
+    assert.strictEqual(inWhere, "SELECT * FROM t WHERE '[object Object]'");
+    assert.strictEqual(counted, false);
+  });
+
   it('should keep an object that only looks expandable inert outside SET', () => {
     assert.strictEqual(
       format('DELETE FROM entries WHERE id = ?', [{ value: { id: true } }]),
@@ -364,6 +431,12 @@ describe('expand: a mark made by another copy or build of the package', () => {
       'SELECT * FROM users WHERE `id` = 1'
     );
     assert.strictEqual(escape(mark, true), '`id` = 1');
+  });
+
+  it('should tell that a mark built by hand in the shape expand() returns is a mark', () => {
+    const mark = { [MARK]: true, value: { id: 1 } };
+
+    assert.strictEqual(isExpand(mark), true);
   });
 
   it('should carry the mark as the registered symbol and the wrapped object itself', () => {
@@ -428,6 +501,16 @@ describe('expand: only what a SET clause expands can be marked', () => {
 
       assert.strictEqual(unmarked, 'UPDATE t SET `id` = 1');
       assert.strictEqual(marked, 'SELECT * FROM t WHERE `id` = 1');
+    });
+
+    it(`should tell that ${name} is a mark only once marked, with or without columns`, () => {
+      const unmarked = isExpand(value);
+      const marked = isExpand(expand(value));
+      const limited = isExpand(expand(value, ['id']));
+
+      assert.strictEqual(unmarked, false);
+      assert.strictEqual(marked, true);
+      assert.strictEqual(limited, true);
     });
   }
 
@@ -595,11 +678,16 @@ describe('expand: a mark with no column to set is refused instead of expanding t
     },
   ];
 
-  for (const { name, mark } of marks)
+  for (const { name, mark } of marks) {
     for (const writer of writers)
       it(`should refuse ${name} written by ${writer.name}`, () => {
         assert.throws(() => writer.write(mark), noColumnToSet);
       });
+
+    it(`should tell that ${name}, which has no column to set, is still a mark`, () => {
+      assert.strictEqual(isExpand(mark), true);
+    });
+  }
 
   it('should expand a column the marked object gains after it was marked', () => {
     const body: Record<string, unknown> = {};

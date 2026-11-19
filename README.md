@@ -549,6 +549,24 @@ expand({ id: 1 }, 'id'); // throws TypeError
 
 ---
 
+### isExpand
+
+Tells whether a value is marked by [`expand`](#expand) in any copy of **SQL Escaper**, so code that cannot expand a mark, such as a prepared statement, can refuse it.
+
+```ts
+isExpand(value: unknown): value is Expand
+```
+
+```js
+isExpand(expand({ id: 1 }));
+// => true
+
+isExpand({ id: 1 });
+// => false
+```
+
+---
+
 ### TypeScript
 
 You can import the available types:
