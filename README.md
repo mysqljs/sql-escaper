@@ -425,7 +425,7 @@ Also set `noBackslashEscapes` whenever the mode cannot be known for sure, for ex
 
 A string written in the query itself reads differently in each mode when it holds a backslash, so pass that text as a value instead. With the option set, `format` throws a `TypeError` where a quote follows an odd number of backslashes, as in the last query above.
 
-Setting `noBackslashEscapes` to anything other than a boolean throws a `TypeError`. `format` throws neither error when no values are provided.
+Setting `noBackslashEscapes` to anything other than a boolean throws a `TypeError`. `format` throws neither error when no values are provided, and an empty array counts as none.
 
 A value with a `toSqlString` method receives the SQL mode as its argument, to pass on to the `escape` or `format` calls that build its SQL. Text escaped before the outer call, such as a value escaped into a `raw` string, must be given the same mode by hand:
 
