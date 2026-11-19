@@ -37,6 +37,11 @@ export type SqlValue =
 
 export type Timezone = 'local' | 'Z' | (string & NonNullable<unknown>);
 
+export type PositionalQuery = {
+  sql: string;
+  values: SqlValue[];
+};
+
 export type SqlMode = {
   /** The server runs with the `ANSI_QUOTES` SQL mode: double quotes delimit identifiers, not strings. */
   ansiQuotes?: boolean;

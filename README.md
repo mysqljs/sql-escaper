@@ -567,6 +567,38 @@ isExpand({ id: 1 });
 
 ---
 
+### toPositional
+
+Turns named placeholders into positional ones, `:name` into `?` and `::name` into `??`, and returns the values in placeholder order. It reads the query by the same rules as `format` and escapes nothing, so the result can go to `format` or to a prepared statement.
+
+```ts
+toPositional(sql: string, values?: object, sqlMode?: SqlMode): PositionalQuery
+```
+
+```js
+toPositional('SELECT ::column FROM users WHERE id = :id -- :note', {
+  column: 'email',
+  id: 42,
+});
+// => { sql: 'SELECT ?? FROM users WHERE id = ? -- :note', values: ['email', 42] }
+
+const { sql, values } = toPositional(
+  'UPDATE users SET name = :name WHERE id = :id',
+  { name: 'foo', id: 42 }
+);
+
+format(sql, values);
+// => "UPDATE users SET name = 'foo' WHERE id = 42"
+```
+
+A missing name takes `undefined`, a repeated name repeats its value, and a value the object inherits is read too. A `?` mixed with names takes the next numbered value (`values[0]`, `values[1]`, and so on), as in [**named-placeholders**](https://github.com/mysqljs/named-placeholders).
+
+A query without a placeholder is returned as written with no values, whatever `values` holds. A query with one throws a `TypeError` when `values` is `undefined` or `null`.
+
+With `noBackslashEscapes` set in the [SQL mode](#sql-mode), a quote after an odd number of backslashes throws the same `TypeError` as in `format` only when a placeholder follows it, since only then could the two modes place a value differently.
+
+---
+
 ### TypeScript
 
 You can import the available types:
@@ -574,6 +606,7 @@ You can import the available types:
 ```ts
 import type {
   Expand,
+  PositionalQuery,
   Raw,
   SqlMode,
   SqlValue,
@@ -614,7 +647,7 @@ Each benchmark formats `10,000` queries using `format` with `100` values, compar
 
 - The escaping methods in this library only work when the [`NO_BACKSLASH_ESCAPES`](https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_no_backslash_escapes) SQL mode is disabled (which is the default state for **MySQL** servers), unless `noBackslashEscapes` is set in the [SQL mode](#sql-mode) argument.
 - This library performs **client-side escaping** to generate SQL strings. The syntax for `format` may look similar to a prepared statement, but it is not one. The escaped SQL is safe only on a connection whose character set cannot turn another character into a quote, a backslash, or a backtick, such as `utf8mb4`.
-- When using `format`, placeholders inside strings (`'...'` and `"..."`), backtick identifiers, and comments (`#`, `/* */`, and `--` followed by whitespace) are left as they are. Executable comments (`/*! */`) and optimizer hints (`/*+ */`) are read as SQL, so their placeholders are replaced.
+- When using `format` or `toPositional`, placeholders inside strings (`'...'` and `"..."`), backtick identifiers, and comments (`#`, `/* */`, and `--` followed by whitespace) are left as they are. Executable comments (`/*! */`) and optimizer hints (`/*+ */`) are read as SQL, so their placeholders are replaced.
 - When structured user input is provided as the value to escape, validate the shape of the input, as the resulting escaped string may contain more than a single value.
 - `NaN` and `Infinity` are left as-is. **MySQL** does not support these values, so trying to insert them triggers an error.
 - The string provided to `raw()` will **skip all escaping**, so be careful when passing in unvalidated input.

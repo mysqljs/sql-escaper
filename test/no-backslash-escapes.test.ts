@@ -11,6 +11,7 @@ import {
   raw,
   temporalToString,
 } from '../src/index.ts';
+import { ambiguousQuoteAt } from './__utils__/ambiguousQuoteAt.ts';
 
 const noBackslashEscapes: SqlMode = { noBackslashEscapes: true };
 
@@ -425,10 +426,6 @@ describe('No backslash escapes: a query string that the two modes end at differe
     { name: 'a sparse array', given: new Array<SqlValue>(1) },
     { name: 'a value outside an array', given: 'label' },
   ];
-  const ambiguousQuoteAt = (position: number) => ({
-    name: 'TypeError',
-    message: `argument sql has a quote after an odd number of backslashes at position ${position}, which the SQL modes read differently: pass the string that holds it as a value instead`,
-  });
 
   for (const { name, sql, position } of literals)
     it(`should reject ${name}`, () => {
