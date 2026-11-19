@@ -5,6 +5,7 @@
 
 import type {
   Expand,
+  PositionalQuery,
   Raw,
   SqlMode,
   SqlValue,
@@ -15,6 +16,7 @@ import { Buffer } from 'buffer';
 
 export type {
   Expand,
+  PositionalQuery,
   Raw,
   SqlMode,
   SqlValue,
@@ -59,6 +61,11 @@ const sqlModeFlag = {
   noBackslashEscapes: 2,
 } as const;
 
+/** Not a SQL mode: makes the scan return the bitwise NOT of an ambiguous quote's position instead of throwing. */
+const scanFlag = {
+  reportAmbiguousQuote: 4,
+} as const;
+
 const sqlModeByFlags: readonly (Readonly<SqlMode> | undefined)[] = [
   undefined,
   Object.freeze({ ansiQuotes: true, noBackslashEscapes: false }),
@@ -78,6 +85,7 @@ const charCode = {
   exclamation: 33,
   plus: 43,
   questionMark: 63,
+  colon: 58,
   comma: 44,
   openParen: 40,
   closeParen: 41,
@@ -114,19 +122,24 @@ const isRecord = (value: unknown): value is Record<string, SqlValue> =>
   !(value instanceof Set) &&
   !(value instanceof Map);
 
+const toLower = (code: number): number => code | 32;
+
+const isDigit = (code: number): boolean => code >= 48 && code <= 57;
+
+const isAsciiLetter = (code: number): boolean => {
+  const lower = toLower(code);
+
+  return lower >= 97 && lower <= 122;
+};
+
 const isWordChar = (code: number): boolean =>
-  (code >= 65 && code <= 90) ||
-  (code >= 97 && code <= 122) ||
-  (code >= 48 && code <= 57) ||
-  code === 95;
+  isAsciiLetter(code) || isDigit(code) || code === 95;
 
 const isWhitespace = (code: number): boolean =>
   code === charCode.space ||
   code === charCode.tab ||
   code === charCode.newline ||
   code === charCode.carriageReturn;
-
-const toLower = (code: number): number => code | 32;
 
 const matchesWord = (
   sql: string,
@@ -187,13 +200,17 @@ const rejectAmbiguousQuote = (position: number): never => {
 const skipUnambiguousString = (
   sql: string,
   position: number,
-  quote: number
+  quote: number,
+  modeFlags: number
 ): number => {
   const length = sql.length;
 
   for (let cursor = position + 1; cursor < length; cursor++) {
     if (sql.charCodeAt(cursor) !== quote) continue;
-    if (followsOddBackslashRun(sql, cursor)) rejectAmbiguousQuote(cursor);
+    if (followsOddBackslashRun(sql, cursor))
+      return (modeFlags & scanFlag.reportAmbiguousQuote) === 0
+        ? rejectAmbiguousQuote(cursor)
+        : ~cursor;
     if (sql.charCodeAt(cursor + 1) !== quote) return cursor + 1;
 
     cursor++;
@@ -220,7 +237,7 @@ const skipSqlContext = (
       return skipQuotedWithoutEscapes(sql, position, currentChar);
 
     if ((modeFlags & sqlModeFlag.noBackslashEscapes) !== 0)
-      return skipUnambiguousString(sql, position, currentChar);
+      return skipUnambiguousString(sql, position, currentChar, modeFlags);
 
     const length = sql.length;
 
@@ -297,6 +314,136 @@ const rejectAmbiguousStringsAfter = (
     position = findNextPlaceholder(sql, position + 1, modeFlags);
 };
 
+const findNextQuestionMarkOrColon = (
+  sql: string,
+  start: number,
+  modeFlags: number
+): number => {
+  const sqlLength = sql.length;
+
+  for (let position = start; position < sqlLength; position++) {
+    const code = sql.charCodeAt(position);
+
+    if (code === charCode.questionMark || code === charCode.colon)
+      return position;
+
+    if (code < 128 && MAY_OPEN_QUOTE_OR_COMMENT[code]) {
+      const contextEnd = skipSqlContext(sql, position, modeFlags);
+
+      if (contextEnd < -1) return contextEnd;
+      if (contextEnd !== -1) position = contextEnd - 1;
+    }
+  }
+
+  return -1;
+};
+
+const startsName = (code: number): boolean =>
+  isDigit(code) || isAsciiLetter(code);
+
+const mayHoldPlaceholder = (sql: string): boolean => {
+  for (
+    let colonPosition = sql.indexOf(':');
+    colonPosition !== -1;
+    colonPosition = sql.indexOf(':', colonPosition + 1)
+  )
+    if (startsName(sql.charCodeAt(colonPosition + 1))) return true;
+
+  return sql.includes('?');
+};
+
+const findNextNamedOrPositional = (
+  sql: string,
+  start: number,
+  modeFlags: number
+): number => {
+  let marker = findNextQuestionMarkOrColon(sql, start, modeFlags);
+
+  while (
+    marker >= 0 &&
+    sql.charCodeAt(marker) === charCode.colon &&
+    !startsName(sql.charCodeAt(marker + 1))
+  )
+    marker = findNextQuestionMarkOrColon(sql, marker + 1, modeFlags);
+
+  return marker;
+};
+
+const readNameEnd = (sql: string, start: number): number => {
+  let end = start + 1;
+
+  if (isDigit(sql.charCodeAt(start))) {
+    while (isDigit(sql.charCodeAt(end))) end++;
+
+    return end;
+  }
+
+  while (isWordChar(sql.charCodeAt(end))) end++;
+
+  return end;
+};
+
+const skipPastAmbiguousQuote = (sql: string, position: number): number => {
+  const quote = sql.charCodeAt(position);
+
+  return sql.charCodeAt(position + 1) === quote
+    ? skipQuotedWithoutEscapes(sql, position + 1, quote)
+    : position + 1;
+};
+
+const rejectPlaceholderAfterAmbiguousQuote = (
+  sql: string,
+  quotePosition: number,
+  searchStart: number,
+  modeFlags: number
+): void => {
+  const withBackslashEscapes = modeFlags & ~sqlModeFlag.noBackslashEscapes;
+  let next = findNextNamedOrPositional(
+    sql,
+    skipPastAmbiguousQuote(sql, quotePosition),
+    modeFlags
+  );
+
+  while (next < -1)
+    next = findNextNamedOrPositional(
+      sql,
+      skipPastAmbiguousQuote(sql, ~next),
+      modeFlags
+    );
+
+  if (
+    next !== -1 ||
+    findNextNamedOrPositional(sql, searchStart, withBackslashEscapes) !== -1
+  )
+    rejectAmbiguousQuote(quotePosition);
+};
+
+const endsWithBareColon = (
+  sql: string,
+  start: number,
+  modeFlags: number
+): boolean => {
+  const last = sql.length - 1;
+
+  if (sql.charCodeAt(last) !== charCode.colon) return false;
+
+  let marker = findNextQuestionMarkOrColon(sql, start, modeFlags);
+
+  while (marker >= 0 && marker < last)
+    marker = findNextQuestionMarkOrColon(sql, marker + 1, modeFlags);
+
+  return marker === last;
+};
+
+const rejectMissingValues = (
+  placeholderPosition: number,
+  values: null | undefined
+): never => {
+  throw new TypeError(
+    `argument sql has a placeholder at position ${placeholderPosition}, but argument values is ${values}: pass an object that holds the value of each placeholder`
+  );
+};
+
 const isInSetAssignmentList = (
   sql: string,
   setEnd: number,
@@ -348,7 +495,7 @@ const isInSetAssignmentList = (
     }
 
     if (isWordChar(code)) {
-      if (depth === 0 && !(code >= 48 && code <= 57)) {
+      if (depth === 0 && !isDigit(code)) {
         const bucket = SET_CLAUSE_TERMINATORS_BY_FIRST[toLower(code)];
 
         if (bucket)
@@ -438,8 +585,7 @@ const createSetAssignmentTest = (sql: string, modeFlags: number) => {
     const previousChar =
       previous >= chunkIndex ? toLower(sql.charCodeAt(previous)) : 0;
     const followsLetterOrComma =
-      (previousChar >= 97 && previousChar <= 122) ||
-      previousChar === charCode.comma;
+      isAsciiLetter(previousChar) || previousChar === charCode.comma;
 
     if (!followsLetterOrComma) return false;
 
@@ -1069,3 +1215,84 @@ export const isExpand = (value: unknown): value is Expand =>
   value !== null &&
   isMark(value) &&
   isExpandable(value);
+
+/** Turns `:name` into `?` and `::name` into `??`, with the values in placeholder order and nothing escaped. A placeholder inside a string, an identifier, or a comment is left as written. */
+export const toPositional = (
+  sql: string,
+  values?: object,
+  sqlMode?: SqlMode
+): PositionalQuery => {
+  if (typeof sql !== 'string')
+    throw new TypeError('argument sql must be a string');
+
+  if (!mayHoldPlaceholder(sql)) return { sql, values: [] };
+
+  const modeFlags = toModeFlags(sqlMode) | scanFlag.reportAmbiguousQuote;
+  let placeholderPosition = findNextNamedOrPositional(sql, 0, modeFlags);
+
+  if (placeholderPosition < 0) {
+    if (placeholderPosition !== -1)
+      rejectPlaceholderAfterAmbiguousQuote(
+        sql,
+        ~placeholderPosition,
+        0,
+        modeFlags
+      );
+
+    return { sql, values: [] };
+  }
+
+  if (values === undefined || values === null)
+    return rejectMissingValues(placeholderPosition, values);
+
+  const valuesByName = values as Readonly<Record<string, SqlValue>>;
+  const positionalValues: SqlValue[] = [];
+  let result = '';
+  let chunkStart = 0;
+  let questionMarks = 0;
+
+  do {
+    const isQuestionMark =
+      sql.charCodeAt(placeholderPosition) === charCode.questionMark;
+    const placeholderEnd = isQuestionMark
+      ? placeholderPosition + 1
+      : readNameEnd(sql, placeholderPosition + 1);
+    const followsColon =
+      placeholderPosition > chunkStart &&
+      sql.charCodeAt(placeholderPosition - 1) === charCode.colon;
+
+    positionalValues.push(
+      isQuestionMark
+        ? valuesByName[questionMarks++]
+        : valuesByName[sql.slice(placeholderPosition + 1, placeholderEnd)]
+    );
+
+    result += followsColon
+      ? sql.slice(chunkStart, placeholderPosition - 1) + '??'
+      : sql.slice(chunkStart, placeholderPosition) + '?';
+    chunkStart = placeholderEnd;
+    placeholderPosition = findNextNamedOrPositional(
+      sql,
+      placeholderEnd,
+      modeFlags
+    );
+  } while (placeholderPosition >= 0);
+
+  if (placeholderPosition !== -1)
+    rejectPlaceholderAfterAmbiguousQuote(
+      sql,
+      ~placeholderPosition,
+      chunkStart,
+      modeFlags
+    );
+
+  const length = sql.length;
+
+  if (chunkStart < length)
+    result += sql.slice(
+      chunkStart,
+      endsWithBareColon(sql, chunkStart, modeFlags) ? length - 1 : length
+    );
+
+  return { sql: result, values: positionalValues };
+};
