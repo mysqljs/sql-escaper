@@ -1,5 +1,6 @@
 import { assert, describe, it } from 'poku';
 import { escape } from '../src/index.ts';
+import { noColumnToSet } from './__utils__/noColumnToSet.ts';
 
 describe("Can't bypass via object injection using escape directly", () => {
   const value = { password: 1 };
@@ -89,8 +90,34 @@ describe('Safe object to key-value expansion for SET clauses', () => {
 
     assert.strictEqual(escape(value), '`own` = 1');
   });
+});
 
-  it('should return empty string for empty object', () => {
-    assert.strictEqual(escape({}), '');
+describe('An object with no column to set is refused unless stringifyObjects is set', () => {
+  const onlyInherited: Record<string, unknown> = Object.create({
+    inherited: 1,
   });
+  const withoutColumns = [
+    { name: 'an empty object', value: {}, stringified: "'[object Object]'" },
+    { name: 'an empty Map', value: new Map(), stringified: "'[object Map]'" },
+    {
+      name: 'an object holding only functions',
+      value: { fn: () => {} },
+      stringified: "'[object Object]'",
+    },
+    {
+      name: 'an object holding only inherited keys',
+      value: onlyInherited,
+      stringified: "'[object Object]'",
+    },
+  ];
+
+  for (const { name, value, stringified } of withoutColumns) {
+    it(`should refuse ${name} when stringifyObjects is nullish`, () => {
+      assert.throws(() => escape(value), noColumnToSet);
+    });
+
+    it(`should stringify ${name} when stringifyObjects is set`, () => {
+      assert.strictEqual(escape(value, true), stringified);
+    });
+  }
 });

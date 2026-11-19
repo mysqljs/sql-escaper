@@ -1,6 +1,8 @@
+import type { Expand } from '../src/index.ts';
 import { Buffer } from 'node:buffer';
 import { assert, describe, it } from 'poku';
 import { escape, expand, format, raw } from '../src/index.ts';
+import { noColumnToSet } from './__utils__/noColumnToSet.ts';
 
 const MARK = Symbol.for('sql-escaper.expand');
 
@@ -289,16 +291,6 @@ describe('expand: only the mark itself counts, never a lookalike', () => {
       inSet: "UPDATE t SET `value` = '[object Object]'",
     },
     {
-      name: 'a mark inherited through the prototype chain',
-      value: inheritedMark,
-      inSet: 'UPDATE t SET ',
-    },
-    {
-      name: 'a mark whose content is inherited',
-      value: inheritedContent,
-      inSet: 'UPDATE t SET ',
-    },
-    {
       name: 'a mark around a string',
       value: { [MARK]: true, value: 'id = 1' },
       inSet: "UPDATE t SET `value` = 'id = 1'",
@@ -324,6 +316,13 @@ describe('expand: only the mark itself counts, never a lookalike', () => {
       inSet: "UPDATE t SET `value` = '[object Object]'",
     },
   ];
+  const lookalikesWithoutColumns = [
+    {
+      name: 'a mark inherited through the prototype chain',
+      value: inheritedMark,
+    },
+    { name: 'a mark whose content is inherited', value: inheritedContent },
+  ];
 
   for (const { name, value, inSet } of lookalikes) {
     it(`should handle ${name} as the ordinary object it is`, () => {
@@ -334,6 +333,17 @@ describe('expand: only the mark itself counts, never a lookalike', () => {
       assert.strictEqual(inWhere, "SELECT * FROM t WHERE '[object Object]'");
       assert.strictEqual(inSetClause, inSet);
       assert.strictEqual(stringified, "'[object Object]'");
+    });
+  }
+
+  for (const { name, value } of lookalikesWithoutColumns) {
+    it(`should handle ${name} as the ordinary object it is, which has no column to set`, () => {
+      const inWhere = format('SELECT * FROM t WHERE ?', [value]);
+      const stringified = escape(value, true);
+
+      assert.strictEqual(inWhere, "SELECT * FROM t WHERE '[object Object]'");
+      assert.strictEqual(stringified, "'[object Object]'");
+      assert.throws(() => format('UPDATE t SET ?', [value]), noColumnToSet);
     });
   }
 
@@ -486,13 +496,6 @@ describe('expand: only the allowed columns of a value expand', () => {
       columns: ['name'],
       expected: "UPDATE users SET `name` = 'Ana' WHERE id = 1",
     },
-    {
-      name: 'every key of a value holding none of the allowed columns',
-      sql: 'UPDATE users SET ? WHERE id = 1',
-      value: { role: 'admin' },
-      columns: ['name'],
-      expected: 'UPDATE users SET  WHERE id = 1',
-    },
   ];
   const withHole: string[] = [];
   const invalidColumns = [
@@ -551,4 +554,61 @@ describe('expand: only the allowed columns of a value expand', () => {
         }
       );
     });
+});
+
+describe('expand: a mark with no column to set is refused instead of expanding to nothing', () => {
+  const marks = [
+    { name: 'an empty object', mark: expand({}) },
+    { name: 'an empty Map', mark: expand(new Map()) },
+    {
+      name: 'an object holding only functions',
+      mark: expand({ fn: () => {} }),
+    },
+    {
+      name: 'a value holding none of the allowed columns',
+      mark: expand({ role: 'admin' }, ['name']),
+    },
+    {
+      name: 'a Map holding none of the allowed columns',
+      mark: expand(new Map([['role', 'admin']]), ['name']),
+    },
+    {
+      name: 'a value with no allowed column',
+      mark: expand({ name: 'Ana' }, []),
+    },
+  ];
+  const writers = [
+    {
+      name: 'format',
+      write: (mark: Expand) =>
+        format('UPDATE users SET ? WHERE id = 1', [mark]),
+    },
+    {
+      name: 'format while it stringifies objects',
+      write: (mark: Expand) =>
+        format('UPDATE users SET ? WHERE id = 1', [mark], true),
+    },
+    { name: 'escape', write: (mark: Expand) => escape(mark) },
+    {
+      name: 'escape told to stringify objects',
+      write: (mark: Expand) => escape(mark, true),
+    },
+  ];
+
+  for (const { name, mark } of marks)
+    for (const writer of writers)
+      it(`should refuse ${name} written by ${writer.name}`, () => {
+        assert.throws(() => writer.write(mark), noColumnToSet);
+      });
+
+  it('should expand a column the marked object gains after it was marked', () => {
+    const body: Record<string, unknown> = {};
+    const mark = expand(body);
+
+    body.name = 'Ana';
+
+    const statement = format('UPDATE users SET ?', [mark]);
+
+    assert.strictEqual(statement, "UPDATE users SET `name` = 'Ana'");
+  });
 });

@@ -209,11 +209,13 @@ escape({ a: 'b', c: 'd' });
 // => "`a` = 'b', `c` = 'd'"
 ```
 
-Function properties in objects are ignored **(discouraged)**:
+Function properties in objects are ignored **(discouraged)**, and an object left without a `key = value` pair throws a `TypeError`:
 
 ```js
 escape({ a: 'b', c: () => {} });
 // => "`a` = 'b'"
+
+escape({ c: () => {} }); // throws TypeError
 ```
 
 > [!CAUTION]
@@ -355,7 +357,7 @@ format('SELECT ??');
 >
 > The keys of an object expanded here become column names, so a request body bound as it arrives lets the client choose which columns the query changes. Set `stringifyObjects` to `true` so that only marked objects expand, and mark such an object with the columns it may expand through [`expand`](#expand).
 
-When `stringifyObjects` is falsy, objects used in `SET` or `ON DUPLICATE KEY UPDATE` contexts are expanded into `key = value` pairs:
+When `stringifyObjects` is falsy, objects used in `SET` or `ON DUPLICATE KEY UPDATE` contexts are expanded into `key = value` pairs [as `escape` expands them](#objects):
 
 ```js
 format('UPDATE users SET ?', [{ name: 'foo', email: 'bar@test.com' }]);
@@ -502,7 +504,7 @@ expand(value: Record<string, unknown> | Map<string, SqlValue>, columns?: readonl
 > // => "UPDATE users SET `name` = 'foo' WHERE id = 1"
 > ```
 >
-> Only the value's own keys that the list names expand, in the order it names them, and an allowed column the value lacks is left out instead of set to `NULL`.
+> Only the value's own keys that the list names expand, in the order it names them, and an allowed column the value lacks is left out instead of set to `NULL`, so a value holding none of them [throws a `TypeError`](#objects).
 
 ```js
 format('SELECT ?? FROM ?? WHERE ? AND status IN (?) LIMIT ?', [
@@ -524,6 +526,8 @@ format(
 escape(expand({ id: 1 }), true);
 // => '`id` = 1'
 ```
+
+- An object with no column to set also throws a `TypeError` instead of producing an empty clause.
 
 A marked object produces the same text it produces in a `SET` clause. Only the marked value expands, so other objects in the statement keep the default behavior, and a mark nested inside an array, a `Set`, an object, or a `Map` is stringified like any nested object:
 

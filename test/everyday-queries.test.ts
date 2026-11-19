@@ -1,6 +1,7 @@
 import { Buffer } from 'node:buffer';
 import { assert, describe, test } from 'poku';
 import { escape, escapeId, format, raw } from '../src/index.ts';
+import { noColumnToSet } from './__utils__/noColumnToSet.ts';
 
 describe('Critical: UPDATE with named columns', () => {
   test('SET foo = ?, bar = ? WHERE id = ?', () => {
@@ -9,6 +10,7 @@ describe('Critical: UPDATE with named columns', () => {
       'value2',
       42,
     ]);
+
     assert.equal(
       sql,
       "UPDATE users SET foo = 'value1', bar = 'value2' WHERE id = 42"
@@ -20,6 +22,7 @@ describe('Critical: UPDATE with named columns', () => {
       'UPDATE t SET active = ?, count = ?, name = ? WHERE id = ?',
       [true, 100, "O'Brien", 1]
     );
+
     assert.equal(
       sql,
       "UPDATE t SET active = true, count = 100, name = 'O\\'Brien' WHERE id = 1"
@@ -34,6 +37,7 @@ describe('Critical: UPDATE ?? SET ? WHERE (dynamic table + object + raw)', () =>
       { name: 'John', age: 30 },
       42,
     ]);
+
     assert.equal(
       sql,
       "UPDATE `users` SET `name` = 'John', `age` = 30 WHERE id = 42"
@@ -46,6 +50,7 @@ describe('Critical: UPDATE ?? SET ? WHERE (dynamic table + object + raw)', () =>
       { title: 'Hello', updated_at: raw('NOW()') },
       1,
     ]);
+
     assert.equal(
       sql,
       "UPDATE `posts` SET `title` = 'Hello', `updated_at` = NOW() WHERE id = 1"
@@ -62,6 +67,7 @@ describe('Critical: Bulk INSERT with nested arrays', () => {
         [3, 'c'],
       ],
     ]);
+
     assert.equal(sql, "INSERT INTO t VALUES (1, 'a'), (2, 'b'), (3, 'c')");
   });
 
@@ -73,6 +79,7 @@ describe('Critical: Bulk INSERT with nested arrays', () => {
         [3, null, true],
       ],
     ]);
+
     assert.equal(
       sql,
       "INSERT INTO users (id, name, active) VALUES (1, 'Alice', true), (2, 'Bob', false), (3, NULL, true)"
@@ -87,6 +94,7 @@ describe('Critical: Bulk INSERT with nested arrays', () => {
         [2, 'Event B', date],
       ],
     ]);
+
     assert.equal(
       sql,
       "INSERT INTO events VALUES (1, 'Event A', '2024-01-15 10:30:00.000'), (2, 'Event B', '2024-01-15 10:30:00.000')"
@@ -97,6 +105,7 @@ describe('Critical: Bulk INSERT with nested arrays', () => {
 describe('Critical: SELECT IN (?) with array', () => {
   test('WHERE id IN (?) with array of numbers', () => {
     const sql = format('SELECT * FROM users WHERE id IN (?)', [[1, 2, 3]]);
+
     assert.equal(sql, 'SELECT * FROM users WHERE id IN (1, 2, 3)');
   });
 
@@ -104,6 +113,7 @@ describe('Critical: SELECT IN (?) with array', () => {
     const sql = format('SELECT * FROM users WHERE status IN (?)', [
       ['active', 'pending', 'review'],
     ]);
+
     assert.equal(
       sql,
       "SELECT * FROM users WHERE status IN ('active', 'pending', 'review')"
@@ -114,6 +124,7 @@ describe('Critical: SELECT IN (?) with array', () => {
     const sql = format('SELECT * FROM items WHERE code IN (?)', [
       [1, 'abc', null],
     ]);
+
     assert.equal(sql, "SELECT * FROM items WHERE code IN (1, 'abc', NULL)");
   });
 
@@ -122,6 +133,7 @@ describe('Critical: SELECT IN (?) with array', () => {
       [1, 2],
       ['x', 'y'],
     ]);
+
     assert.equal(sql, "SELECT * FROM t WHERE a IN (1, 2) AND b IN ('x', 'y')");
   });
 });
@@ -132,6 +144,7 @@ describe('Critical: ON DUPLICATE KEY UPDATE with raw() values', () => {
       'INSERT INTO counters (id, count) VALUES (?, ?) ON DUPLICATE KEY UPDATE ?',
       [1, 0, { count: raw('count + 1'), updated_at: raw('NOW()') }]
     );
+
     assert.equal(
       sql,
       'INSERT INTO counters (id, count) VALUES (1, 0) ON DUPLICATE KEY UPDATE `count` = count + 1, `updated_at` = NOW()'
@@ -143,6 +156,7 @@ describe('Critical: ON DUPLICATE KEY UPDATE with raw() values', () => {
       'INSERT INTO t (id, name) VALUES (?, ?) ON DUPLICATE KEY UPDATE ?',
       [1, 'test', { name: 'updated', modified: raw('CURRENT_TIMESTAMP') }]
     );
+
     assert.equal(
       sql,
       "INSERT INTO t (id, name) VALUES (1, 'test') ON DUPLICATE KEY UPDATE `name` = 'updated', `modified` = CURRENT_TIMESTAMP"
@@ -164,6 +178,7 @@ describe('Critical: ON DUPLICATE KEY UPDATE with raw() values', () => {
       [dataInsert, dataUpdate],
       false
     );
+
     assert.equal(
       sql,
       "INSERT INTO column SET `aula` = 'Math101', `fecha` = '2024-01-15', `texto` = 'Lesson content', `tipo` = 'lecture', `imagen` = 'image.png', `file` = 'notes.pdf' ON DUPLICATE KEY UPDATE `texto` = 'Lesson content', `imagen` = 'image.png', `file` = 'notes.pdf'"
@@ -174,16 +189,19 @@ describe('Critical: ON DUPLICATE KEY UPDATE with raw() values', () => {
 describe('Critical: stringifyObjects=undefined (mysqljs/mysql legacy mode)', () => {
   test('format called without 3rd argument treats objects as values', () => {
     const sql = format('UPDATE t SET ?', [{ a: 1, b: 'x' }]);
+
     assert.equal(sql, "UPDATE t SET `a` = 1, `b` = 'x'");
   });
 
   test('format with undefined stringifyObjects', () => {
     const sql = format('UPDATE t SET ?', [{ foo: 'bar' }], undefined);
+
     assert.equal(sql, "UPDATE t SET `foo` = 'bar'");
   });
 
   test('escape with undefined stringifyObjects', () => {
     const result = escape({ a: 1 }, undefined);
+
     assert.equal(result, '`a` = 1');
   });
 });
@@ -191,11 +209,13 @@ describe('Critical: stringifyObjects=undefined (mysqljs/mysql legacy mode)', () 
 describe('Important: ?? with array of columns', () => {
   test('SELECT ?? FROM with column array', () => {
     const sql = format('SELECT ?? FROM users', [['id', 'name', 'email']]);
+
     assert.equal(sql, 'SELECT `id`, `name`, `email` FROM users');
   });
 
   test('SELECT ?? with qualified column names', () => {
     const sql = format('SELECT ?? FROM users u', [['u.id', 'u.name']]);
+
     assert.equal(sql, 'SELECT `u`.`id`, `u`.`name` FROM users u');
   });
 });
@@ -207,11 +227,13 @@ describe('Important: INSERT with null via format', () => {
       null,
       'x',
     ]);
+
     assert.equal(sql, "INSERT INTO t (a, b, c) VALUES (1, NULL, 'x')");
   });
 
   test('INSERT with undefined converts to NULL', () => {
     const sql = format('INSERT INTO t (a, b) VALUES (?, ?)', [1, undefined]);
+
     assert.equal(sql, 'INSERT INTO t (a, b) VALUES (1, NULL)');
   });
 });
@@ -219,11 +241,13 @@ describe('Important: INSERT with null via format', () => {
 describe('Important: WHERE column IS ? with null', () => {
   test('WHERE deleted_at IS ? with null', () => {
     const sql = format('SELECT * FROM t WHERE deleted_at IS ?', [null]);
+
     assert.equal(sql, 'SELECT * FROM t WHERE deleted_at IS NULL');
   });
 
   test('WHERE value IS NOT ? with null', () => {
     const sql = format('SELECT * FROM t WHERE value IS NOT ?', [null]);
+
     assert.equal(sql, 'SELECT * FROM t WHERE value IS NOT NULL');
   });
 });
@@ -232,12 +256,14 @@ describe('Important: INSERT with Buffer via format', () => {
   test('INSERT with binary data', () => {
     const buffer = Buffer.from([0xde, 0xad, 0xbe, 0xef]);
     const sql = format('INSERT INTO t (data) VALUES (?)', [buffer]);
+
     assert.equal(sql, "INSERT INTO t (data) VALUES (X'deadbeef')");
   });
 
   test('UPDATE with binary data', () => {
     const buffer = Buffer.from([0x01, 0x02, 0x03]);
     const sql = format('UPDATE t SET data = ? WHERE id = ?', [buffer, 1]);
+
     assert.equal(sql, "UPDATE t SET data = X'010203' WHERE id = 1");
   });
 });
@@ -245,16 +271,19 @@ describe('Important: INSERT with Buffer via format', () => {
 describe('Important: Single non-array value as argument', () => {
   test('format with single number', () => {
     const sql = format('SELECT * FROM t WHERE id = ?', 42);
+
     assert.equal(sql, 'SELECT * FROM t WHERE id = 42');
   });
 
   test('format with single string', () => {
     const sql = format('SELECT * FROM t WHERE name = ?', 'John');
+
     assert.equal(sql, "SELECT * FROM t WHERE name = 'John'");
   });
 
   test('format with single boolean', () => {
     const sql = format('SELECT * FROM t WHERE active = ?', true);
+
     assert.equal(sql, 'SELECT * FROM t WHERE active = true');
   });
 });
@@ -267,6 +296,7 @@ describe('Important: Multiple ?? and ? in same query', () => {
       'status',
       'active',
     ]);
+
     assert.equal(
       sql,
       "SELECT `id`, `name` FROM `users` WHERE `status` = 'active'"
@@ -287,6 +317,7 @@ describe('Important: Multiple ?? and ? in same query', () => {
         'created_at',
       ]
     );
+
     assert.equal(
       sql,
       "SELECT `id`, `name` FROM `users` WHERE `active` = true AND `role` IN ('admin', 'user') ORDER BY `created_at`"
@@ -297,11 +328,13 @@ describe('Important: Multiple ?? and ? in same query', () => {
 describe('Important: Empty Buffer', () => {
   test('escape empty buffer', () => {
     const buffer = Buffer.alloc(0);
+
     assert.equal(escape(buffer), "X''");
   });
 
   test('format with empty buffer', () => {
     const sql = format('INSERT INTO t (data) VALUES (?)', [Buffer.alloc(0)]);
+
     assert.equal(sql, "INSERT INTO t (data) VALUES (X'')");
   });
 });
@@ -315,6 +348,7 @@ describe('Important: format with explicit timezone as 4th argument', () => {
       false,
       'Z'
     );
+
     assert.equal(
       sql,
       "INSERT INTO t (created) VALUES ('2024-06-15 12:30:45.123')"
@@ -329,6 +363,7 @@ describe('Important: format with explicit timezone as 4th argument', () => {
       false,
       '+05:30'
     );
+
     assert.equal(
       sql,
       "INSERT INTO t (created) VALUES ('2024-06-15 17:30:00.000')"
@@ -343,6 +378,7 @@ describe('Important: format with explicit timezone as 4th argument', () => {
       false,
       '-08:00'
     );
+
     assert.equal(
       sql,
       "INSERT INTO t (created) VALUES ('2024-06-15 04:00:00.000')"
@@ -352,14 +388,18 @@ describe('Important: format with explicit timezone as 4th argument', () => {
 
 describe('Nice to have: Edge case values', () => {
   test('empty string', () => {
-    assert.equal(escape(''), "''");
+    const escaped = escape('');
     const sql = format('SELECT * FROM t WHERE name = ?', ['']);
+
+    assert.equal(escaped, "''");
     assert.equal(sql, "SELECT * FROM t WHERE name = ''");
   });
 
   test('zero', () => {
-    assert.equal(escape(0), '0');
+    const escaped = escape(0);
     const sql = format('SELECT * FROM t WHERE count = ?', [0]);
+
+    assert.equal(escaped, '0');
     assert.equal(sql, 'SELECT * FROM t WHERE count = 0');
   });
 
@@ -368,10 +408,12 @@ describe('Nice to have: Edge case values', () => {
   });
 
   test('MAX_SAFE_INTEGER', () => {
-    assert.equal(escape(Number.MAX_SAFE_INTEGER), '9007199254740991');
+    const escaped = escape(Number.MAX_SAFE_INTEGER);
     const sql = format('SELECT * FROM t WHERE id = ?', [
       Number.MAX_SAFE_INTEGER,
     ]);
+
+    assert.equal(escaped, '9007199254740991');
     assert.equal(sql, 'SELECT * FROM t WHERE id = 9007199254740991');
   });
 
@@ -384,6 +426,7 @@ describe('Nice to have: Edge case values', () => {
 describe('Nice to have: Unicode handling', () => {
   test('CJK characters', () => {
     const sql = format('INSERT INTO t (name) VALUES (?)', ['你好世界']);
+
     assert.equal(sql, "INSERT INTO t (name) VALUES ('你好世界')");
   });
 
@@ -391,6 +434,7 @@ describe('Nice to have: Unicode handling', () => {
     const sql = format('INSERT INTO t (content) VALUES (?)', [
       'Hello 🎉 World 🚀',
     ]);
+
     assert.equal(sql, "INSERT INTO t (content) VALUES ('Hello 🎉 World 🚀')");
   });
 
@@ -398,6 +442,7 @@ describe('Nice to have: Unicode handling', () => {
     const sql = format('INSERT INTO t (text) VALUES (?)', [
       'Café ☕ naïve 日本語',
     ]);
+
     assert.equal(sql, "INSERT INTO t (text) VALUES ('Café ☕ naïve 日本語')");
   });
 });
@@ -405,11 +450,13 @@ describe('Nice to have: Unicode handling', () => {
 describe('Nice to have: LIKE with special characters', () => {
   test('LIKE with % wildcard in value', () => {
     const sql = format('SELECT * FROM t WHERE name LIKE ?', ['%test%']);
+
     assert.equal(sql, "SELECT * FROM t WHERE name LIKE '%test%'");
   });
 
   test('LIKE with _ wildcard in value', () => {
     const sql = format('SELECT * FROM t WHERE code LIKE ?', ['A_B_C']);
+
     assert.equal(sql, "SELECT * FROM t WHERE code LIKE 'A_B_C'");
   });
 
@@ -417,6 +464,7 @@ describe('Nice to have: LIKE with special characters', () => {
     const sql = format('SELECT * FROM t WHERE path LIKE ?', [
       '%path\\%to\\%file%',
     ]);
+
     assert.equal(
       sql,
       "SELECT * FROM t WHERE path LIKE '%path\\\\%to\\\\%file%'"
@@ -427,11 +475,13 @@ describe('Nice to have: LIKE with special characters', () => {
 describe('Nice to have: CALL procedure', () => {
   test('CALL with parameters', () => {
     const sql = format('CALL my_procedure(?, ?, ?)', [1, 'test', true]);
+
     assert.equal(sql, "CALL my_procedure(1, 'test', true)");
   });
 
   test('CALL with null parameter', () => {
     const sql = format('CALL process_data(?, ?)', [null, 'value']);
+
     assert.equal(sql, "CALL process_data(NULL, 'value')");
   });
 });
@@ -443,6 +493,7 @@ describe('Nice to have: Empty array', () => {
 
   test('IN clause with empty array produces empty list', () => {
     const sql = format('SELECT * FROM t WHERE id IN (?)', [[]]);
+
     assert.equal(sql, 'SELECT * FROM t WHERE id IN ()');
   });
 });
@@ -450,6 +501,7 @@ describe('Nice to have: Empty array', () => {
 describe('Nice to have: Object with null values', () => {
   test('SET with null value in object', () => {
     const sql = format('UPDATE t SET ?', [{ name: 'test', deleted_at: null }]);
+
     assert.equal(sql, "UPDATE t SET `name` = 'test', `deleted_at` = NULL");
   });
 
@@ -458,6 +510,7 @@ describe('Nice to have: Object with null values', () => {
       'INSERT INTO t (id) VALUES (?) ON DUPLICATE KEY UPDATE ?',
       [1, { value: null, name: 'x' }]
     );
+
     assert.equal(
       sql,
       "INSERT INTO t (id) VALUES (1) ON DUPLICATE KEY UPDATE `value` = NULL, `name` = 'x'"
@@ -518,6 +571,7 @@ describe('Nice to have: Deeply nested arrays', () => {
       ],
     ];
     const sql = format('INSERT INTO t VALUES ?', data);
+
     assert.equal(sql, "INSERT INTO t VALUES (1, 'a'), (2, 'b')");
   });
 });
@@ -528,6 +582,7 @@ describe('Nice to have: Boolean in various contexts', () => {
       true,
       false,
     ]);
+
     assert.equal(
       sql,
       'SELECT * FROM t WHERE active = true AND deleted = false'
@@ -536,11 +591,13 @@ describe('Nice to have: Boolean in various contexts', () => {
 
   test('boolean in INSERT', () => {
     const sql = format('INSERT INTO t (active) VALUES (?)', [false]);
+
     assert.equal(sql, 'INSERT INTO t (active) VALUES (false)');
   });
 
   test('boolean in object for SET', () => {
     const sql = format('UPDATE t SET ?', [{ active: true, archived: false }]);
+
     assert.equal(sql, 'UPDATE t SET `active` = true, `archived` = false');
   });
 });
@@ -551,6 +608,7 @@ describe('Critical: Backtick-quoted identifiers with comment-like sequences', ()
       'INSERT INTO `db--name`.`table`(`a`, `b`) VALUES (?, ?)',
       [1, 'hello']
     );
+
     assert.equal(
       sql,
       "INSERT INTO `db--name`.`table`(`a`, `b`) VALUES (1, 'hello')"
@@ -562,16 +620,19 @@ describe('Critical: Backtick-quoted identifiers with comment-like sequences', ()
       'INSERT INTO t (`col--1`, `col--2`) VALUES (?, ?)',
       [1, 2]
     );
+
     assert.equal(sql, 'INSERT INTO t (`col--1`, `col--2`) VALUES (1, 2)');
   });
 
   test('backticks with block comment markers', () => {
     const sql = format('INSERT INTO `table/*name*/` VALUES (?)', [1]);
+
     assert.equal(sql, 'INSERT INTO `table/*name*/` VALUES (1)');
   });
 
   test('escaped backticks inside identifiers', () => {
     const sql = format('INSERT INTO `table``name` VALUES (?)', [1]);
+
     assert.equal(sql, 'INSERT INTO `table``name` VALUES (1)');
   });
 
@@ -580,6 +641,7 @@ describe('Critical: Backtick-quoted identifiers with comment-like sequences', ()
       'SELECT * FROM `db--1`.`table/*test*/` WHERE `col--id` = ?',
       [42]
     );
+
     assert.equal(
       sql,
       'SELECT * FROM `db--1`.`table/*test*/` WHERE `col--id` = 42'
@@ -591,6 +653,7 @@ describe('Critical: Backtick-quoted identifiers with comment-like sequences', ()
       'value',
       1,
     ]);
+
     assert.equal(
       sql,
       "UPDATE `table--name` SET `col--1` = 'value' WHERE id = 1"
@@ -602,6 +665,7 @@ describe('Critical: Backtick-quoted identifiers with comment-like sequences', ()
       ['col--1', 'col--2'],
       1,
     ]);
+
     assert.equal(
       sql,
       'SELECT `col--1`, `col--2` FROM `users--table` WHERE id = 1'
@@ -613,6 +677,7 @@ describe('Critical: Backtick-quoted identifiers with comment-like sequences', ()
       ['id', 'name'],
       1,
     ]);
+
     assert.equal(sql, 'SELECT `id`, `name` FROM users WHERE id = 1');
   });
 });
@@ -622,6 +687,7 @@ describe('Set (treated like Array) and Map (treated like Object) via ?', () => {
     const sql = format('SELECT * FROM users WHERE id IN (?)', [
       new Set([1, 2, 3]),
     ]);
+
     assert.equal(sql, 'SELECT * FROM users WHERE id IN (1, 2, 3)');
   });
 
@@ -629,6 +695,7 @@ describe('Set (treated like Array) and Map (treated like Object) via ?', () => {
     const sql = format('SELECT * FROM users WHERE status IN (?)', [
       new Set(['active', 'pending']),
     ]);
+
     assert.equal(
       sql,
       "SELECT * FROM users WHERE status IN ('active', 'pending')"
@@ -637,6 +704,7 @@ describe('Set (treated like Array) and Map (treated like Object) via ?', () => {
 
   test('SELECT ? with Set expands like array', () => {
     const sql = format('SELECT ?', [new Set([42])]);
+
     assert.equal(sql, 'SELECT 42');
   });
 
@@ -647,26 +715,29 @@ describe('Set (treated like Array) and Map (treated like Object) via ?', () => {
         ['count', 7],
       ]),
     ]);
+
     assert.equal(sql, "UPDATE t SET `name` = 'foo', `count` = 7");
   });
 
   test('Map in regular ? position stringifies like object', () => {
     const sql = format('SELECT * FROM t WHERE data = ?', [new Map([['x', 1]])]);
+
     assert.equal(sql, "SELECT * FROM t WHERE data = '[object Map]'");
   });
 
   test('Set in SET position treated like array (lists)', () => {
     const sql = format('UPDATE t SET ?', [new Set(['a', 'b'])]);
+
     assert.equal(sql, "UPDATE t SET 'a', 'b'");
   });
 
   test('empty Set in IN (?)', () => {
     const sql = format('SELECT * FROM t WHERE id IN (?)', [new Set()]);
+
     assert.equal(sql, 'SELECT * FROM t WHERE id IN ()');
   });
 
-  test('empty Map in SET ?', () => {
-    const sql = format('UPDATE t SET ?', [new Map()]);
-    assert.equal(sql, 'UPDATE t SET ');
+  test('empty Map in SET ? is refused', () => {
+    assert.throws(() => format('UPDATE t SET ?', [new Map()]), noColumnToSet);
   });
 });
