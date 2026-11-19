@@ -833,6 +833,21 @@ const writeAssignments = (
   return sql;
 };
 
+const writeNonEmptyAssignments = (
+  object: Record<string, SqlValue> | Map<string, SqlValue>,
+  timezone: Timezone | undefined,
+  modeFlags: number
+): string => {
+  const sql = writeAssignments(object, timezone, modeFlags);
+
+  if (sql.length === 0)
+    throw new TypeError(
+      'an object expanded into key = value pairs has no column to set: give it at least one column or skip the query'
+    );
+
+  return sql;
+};
+
 /** Turns every own key of the object into a column. For an object the code did not build, limit the columns with `escape(expand(object, columns))` instead. */
 export const objectToValues = (
   object: Record<string, SqlValue> | Map<string, SqlValue>,
@@ -903,11 +918,11 @@ const escapeValue = (
       if (hasSqlString(value))
         return String(value.toSqlString(sqlModeByFlags[modeFlags]));
       if (topLevel && isMark(value))
-        return writeAssignments(value.value, timezone, modeFlags);
+        return writeNonEmptyAssignments(value.value, timezone, modeFlags);
       if (!(stringifyObjects === undefined || stringifyObjects === null))
         return escapeText(String(value), modeFlags);
       if (isRecord(value) || value instanceof Map)
-        return writeAssignments(value, timezone, modeFlags);
+        return writeNonEmptyAssignments(value, timezone, modeFlags);
 
       return escapeText(String(value), modeFlags);
     }
@@ -991,13 +1006,17 @@ export const format = (
         modeFlags
       );
     else if (isMark(currentValue))
-      escapedValue = writeAssignments(currentValue.value, timezone, modeFlags);
+      escapedValue = writeNonEmptyAssignments(
+        currentValue.value,
+        timezone,
+        modeFlags
+      );
     else {
       if (isSetAssignment === undefined)
         isSetAssignment = createSetAssignmentTest(sql, modeFlags);
 
       escapedValue = isSetAssignment(chunkIndex, placeholderPosition)
-        ? writeAssignments(currentValue, timezone, modeFlags)
+        ? writeNonEmptyAssignments(currentValue, timezone, modeFlags)
         : escapeValue(currentValue, true, timezone, false, modeFlags);
     }
 

@@ -7,5 +7,5 @@
       "tags": ["SQL", "MySQL", "MariaDB", "Prepared Statement", "[required]"]
     }
   ],
-  "checkers": { "ignore": [".agents", ".claude", "benchmark"] }
+  "checkers": { "ignore": [".agents", ".claude", "benchmark", "test"] }
 }

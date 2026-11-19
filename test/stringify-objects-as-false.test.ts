@@ -2,6 +2,7 @@ import type { SqlValue } from '../src/index.ts';
 import { assert, describe, it } from 'poku';
 import { format as _format } from '../src/index.ts';
 import { localDate } from './__utils__/localDate.ts';
+import { noColumnToSet } from './__utils__/noColumnToSet.ts';
 
 const format = (sql: string, values?: SqlValue) => _format(sql, values, false);
 
@@ -114,6 +115,47 @@ describe('SET with object parameter', () => {
       query,
       "INSERT INTO users (name, email) VALUES ('foo', 'bar@test.com') ON DUPLICATE KEY UPDATE `name` = 'foo', `email` = 'bar@test.com'"
     );
+  });
+});
+
+describe('An object that has no column to set', () => {
+  const assignmentLists = [
+    {
+      name: 'an empty object in an UPDATE SET clause',
+      sql: 'UPDATE users SET ? WHERE id = 1',
+      values: [{}],
+    },
+    {
+      name: 'an empty object in an INSERT SET clause',
+      sql: 'INSERT INTO users SET ?',
+      values: [{}],
+    },
+    {
+      name: 'an empty object in an ON DUPLICATE KEY UPDATE clause',
+      sql: 'INSERT INTO users (name) VALUES (?) ON DUPLICATE KEY UPDATE ?',
+      values: ['foo', {}],
+    },
+    {
+      name: 'an object holding only functions',
+      sql: 'UPDATE users SET ?',
+      values: [{ fn: () => {} }],
+    },
+    {
+      name: 'an empty Map',
+      sql: 'UPDATE users SET ?',
+      values: [new Map()],
+    },
+  ];
+
+  for (const { name, sql, values } of assignmentLists)
+    it(`should refuse ${name}`, () => {
+      assert.throws(() => format(sql, values), noColumnToSet);
+    });
+
+  it('should keep an empty object outside SET as an inert value', () => {
+    const query = format('SELECT * FROM users WHERE ?', [{}]);
+
+    assert.strictEqual(query, "SELECT * FROM users WHERE '[object Object]'");
   });
 });
 

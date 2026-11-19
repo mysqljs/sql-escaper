@@ -54,7 +54,7 @@ test('value containing separator is fully escaped when forbidQualified', () => {
   assert.equal(escapeId('id1.id2', true), '`id1.id2`');
 });
 
-test('arrays are turned into lists', () => {
+test('arrays are turned into identifier lists', () => {
   assert.equal(escapeId(['a', 'b', 't.c']), '`a`, `b`, `t`.`c`');
 });
 
@@ -268,11 +268,11 @@ test('dates are converted to specified time zone "-05:00"', () => {
 });
 
 test('dates are converted to UTC for unknown time zone', () => {
+  const expected = '2012-05-07 11:42:03.002';
   const date = new Date(Date.UTC(2012, 4, 7, 11, 42, 3, 2));
-  const expected = escape(date, false, 'Z');
   const string = escape(date, false, 'foo');
 
-  assert.strictEqual(string, expected);
+  assert.strictEqual(string, `'${expected}'`);
 });
 
 test('invalid dates are converted to null', () => {
@@ -299,7 +299,9 @@ test('buffers are converted to hex', () => {
 
 test('buffers object cannot inject SQL', () => {
   const buffer = Buffer.from([0, 1, 254, 255]);
+
   buffer.toString = () => "00' OR '1'='1";
+
   const string = escape(buffer);
 
   assert.strictEqual(string, "X'00\\' OR \\'1\\'=\\'1'");
@@ -315,79 +317,89 @@ test('Infinity -> Infinity', () => {
 
 test('question marks are replaced with escaped array values', () => {
   const sql = format('? and ?', ['a', 'b']);
+
   assert.equal(sql, "'a' and 'b'");
 });
 
 test('double quest marks are replaced with escaped id', () => {
   const sql = format('SELECT * FROM ?? WHERE id = ?', ['table', 42]);
+
   assert.equal(sql, 'SELECT * FROM `table` WHERE id = 42');
 });
 
 test('triple question marks are ignored', () => {
   const sql = format('? or ??? and ?', ['foo', 'bar', 'fizz', 'buzz']);
+
   assert.equal(sql, "'foo' or ??? and 'bar'");
 });
 
 test('extra question marks are left untouched', () => {
   const sql = format('? and ?', ['a']);
+
   assert.equal(sql, "'a' and ?");
 });
 
 test('extra arguments are not used', () => {
   const sql = format('? and ?', ['a', 'b', 'c']);
+
   assert.equal(sql, "'a' and 'b'");
 });
 
 test('question marks within values do not cause issues', () => {
   const sql = format('? and ?', ['hello?', 'b']);
+
   assert.equal(sql, "'hello?' and 'b'");
 });
 
 test('undefined is ignored', () => {
   const sql = format('?', undefined, false);
+
   assert.equal(sql, '?');
 });
 
 test('unsafe objects is not converted to values', () => {
   const sql = format('?', { hello: 'world' }, false);
+
   assert.equal(sql, "'[object Object]'");
 });
 
 test('objects is converted to values', () => {
   const sql = format('SET ?', { hello: 'world' }, false);
+
   assert.equal(sql, "SET `hello` = 'world'");
 });
 
 test('objects is not converted to values', () => {
-  const sql1 = format('?', { hello: 'world' }, true);
-  assert.equal(sql1, "'[object Object]'");
-
-  const sql2 = format(
+  const fromPlainObject = format('?', { hello: 'world' }, true);
+  const fromToString = format(
     '?',
     {
       toString: () => 'hello',
     },
     true
   );
-  assert.equal(sql2, "'hello'");
-
-  const sql3 = format(
+  const fromToSqlString = format(
     '?',
     {
       toSqlString: () => '@foo',
     },
     true
   );
-  assert.equal(sql3, '@foo');
+
+  assert.equal(fromPlainObject, "'[object Object]'");
+  assert.equal(fromToString, "'hello'");
+  assert.equal(fromToSqlString, '@foo');
 });
 
 test('sql is untouched if no values are provided', () => {
   const sql = format('SELECT ??');
+
   assert.equal(sql, 'SELECT ??');
 });
 
 test('sql is untouched if values are provided but there are no placeholders', () => {
   const sql = format('SELECT COUNT(*) FROM table', ['a', 'b']);
+
   assert.equal(sql, 'SELECT COUNT(*) FROM table');
 });
 
@@ -396,17 +408,19 @@ test('creates object', () => {
 });
 
 test('rejects number', () => {
-  assert.throws(() => {
-    // @ts-expect-error
-    raw(42);
-  });
+  assert.throws(
+    // @ts-expect-error: testing a number as the raw SQL at runtime
+    () => raw(42),
+    { name: 'TypeError', message: 'argument sql must be a string' }
+  );
 });
 
 test('rejects undefined', () => {
-  assert.throws(() => {
-    // @ts-expect-error
-    raw();
-  });
+  assert.throws(
+    // @ts-expect-error: testing a missing raw SQL at runtime
+    () => raw(),
+    { name: 'TypeError', message: 'argument sql must be a string' }
+  );
 });
 
 test('object has toSqlString', () => {
@@ -420,11 +434,15 @@ test('toSqlString returns sql as-is', () => {
   );
 });
 
-test('empty objects return empty string for objectToValues', () => {
+test('objects with no column return empty string for objectToValues', () => {
   assert.equal(objectToValues({}), '');
+  assert.equal(objectToValues(new Map()), '');
+  // @ts-expect-error: testing a function value at runtime
+  assert.equal(objectToValues({ fn: () => {} }), '');
 });
 
 test('placeholders work with arithmetic operators', () => {
   const sql = format('SELECT ? - ? + ? / ?', [10, 3, 20, 4]);
+
   assert.equal(sql, 'SELECT 10 - 3 + 20 / 4');
 });
