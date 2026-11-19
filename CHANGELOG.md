@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.10.0](https://github.com/mysqljs/sql-escaper/compare/v1.9.1...v1.10.0) (2026-11-19)
+
+
+### Features
+
+* tell whether a value is marked by `expand` ([#89](https://github.com/mysqljs/sql-escaper/issues/89)) ([0c6a42d](https://github.com/mysqljs/sql-escaper/commit/0c6a42d300ffe9596173120e0f6b956b15576c98))
+* turn named placeholders into positional ones ([#91](https://github.com/mysqljs/sql-escaper/issues/91)) ([82a7e02](https://github.com/mysqljs/sql-escaper/commit/82a7e027cd80b9006d39ce2c069ca9f7b716cf5c))
+
+
+### Bug Fixes
+
+* return the SQL as written when values are an empty array ([#90](https://github.com/mysqljs/sql-escaper/issues/90)) ([57af42a](https://github.com/mysqljs/sql-escaper/commit/57af42ad9d1ccfe5cb310106480a584c23f32465))
+* throw when an object has no column to set ([#87](https://github.com/mysqljs/sql-escaper/issues/87)) ([c1959d5](https://github.com/mysqljs/sql-escaper/commit/c1959d562ec4814548010b31d4fb335f134818b8))
+
 ## [1.9.1](https://github.com/mysqljs/sql-escaper/compare/v1.9.0...v1.9.1) (2026-11-18)
 
 
