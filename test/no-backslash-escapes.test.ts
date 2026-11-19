@@ -419,6 +419,12 @@ describe('No backslash escapes: a query string that the two modes end at differe
       position: 70,
     },
   ];
+  const ambiguousQuery = "SELECT 'C:\\' AS path, ? AS label";
+  const valuesToWrite: { name: string; given: SqlValue | SqlValue[] }[] = [
+    { name: 'an undefined value', given: [undefined] },
+    { name: 'a sparse array', given: new Array<SqlValue>(1) },
+    { name: 'a value outside an array', given: 'label' },
+  ];
   const ambiguousQuoteAt = (position: number) => ({
     name: 'TypeError',
     message: `argument sql has a quote after an odd number of backslashes at position ${position}, which the SQL modes read differently: pass the string that holds it as a value instead`,
@@ -431,6 +437,20 @@ describe('No backslash escapes: a query string that the two modes end at differe
         ambiguousQuoteAt(position)
       );
     });
+
+  for (const { name, given } of valuesToWrite)
+    it(`should reject the query given ${name}`, () => {
+      assert.throws(
+        () => format(ambiguousQuery, given, false, 'local', noBackslashEscapes),
+        ambiguousQuoteAt(11)
+      );
+    });
+
+  it('should leave the query as written given an empty array of values', () => {
+    const actual = formatUnderNoBackslashEscapes(ambiguousQuery, []);
+
+    assert.strictEqual(actual, "SELECT 'C:\\' AS path, ? AS label");
+  });
 
   it('should keep reading a backslash before a quote as an escape when the mode is off', () => {
     const actual = format("SELECT 'it\\'s' FROM t WHERE id = ?", [7]);
@@ -511,6 +531,17 @@ describe('No backslash escapes: the option is a boolean of its own', () => {
         () => format('SELECT ?', ["it's"], false, 'local', sqlMode),
         TypeError
       );
+    });
+
+  for (const flag of invalid)
+    it(`should ignore ${JSON.stringify(flag)} given an empty array of values`, () => {
+      const sqlMode: SqlMode = {};
+
+      Reflect.set(sqlMode, 'noBackslashEscapes', flag);
+
+      const actual = format('SELECT ?', [], false, 'local', sqlMode);
+
+      assert.strictEqual(actual, 'SELECT ?');
     });
 
   it('should ignore an inherited flag', () => {

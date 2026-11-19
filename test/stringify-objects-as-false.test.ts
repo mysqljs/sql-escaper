@@ -12,6 +12,12 @@ describe('SELECT without values', () => {
 
     assert.strictEqual(query, 'SELECT * FROM users');
   });
+
+  it('should leave the placeholders as written', () => {
+    const query = format('SELECT ?? FROM users WHERE id = ?', []);
+
+    assert.strictEqual(query, 'SELECT ?? FROM users WHERE id = ?');
+  });
 });
 
 describe('SELECT with object parameter', () => {

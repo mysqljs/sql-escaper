@@ -953,9 +953,12 @@ export const format = (
 ): string => {
   if (values === undefined || values === null) return sql;
 
-  const modeFlags = toModeFlags(sqlMode);
   const valuesArray: SqlValue[] = Array.isArray(values) ? values : [values];
   const length = valuesArray.length;
+
+  if (length === 0) return sql;
+
+  const modeFlags = toModeFlags(sqlMode);
 
   let isSetAssignment: ReturnType<typeof createSetAssignmentTest> | undefined;
   let result = '';
